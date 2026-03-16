@@ -48,10 +48,6 @@
   // GATE: B OR A
   if (!conditionB && !conditionA) return;
 
-  var detectionSignal = (conditionB && conditionA) ? 'referrer+utm' :
-                         conditionB                ? 'referrer_only' :
-                                                     'utm_only';
-
   var hsData = {
     utm_source:       params.get('utm_source')   || '',
     utm_medium:       params.get('utm_medium')   || '',
