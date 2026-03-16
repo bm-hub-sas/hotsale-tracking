@@ -1,107 +1,72 @@
 <!-- Hotsale UTM Capture -->
 <script>
 (function() {
-
-  // ── CONFIG ──────────────────────────────────────────────
   var hotsaleKeywords = [
-    'hotsale', 'hot_sale', 'hot-sale', 'hot.sale', 'hotsale2026', 'hotsale_2026', 'hotsale-2026', 'hs2026', 'hs_2026', 'hs-2026', 'hotsale_mar', 'hotsale_marzo', 'hotsalemarzo', 'hotsale_oct', 'hotsale_octubre', 'hotsaleoct', 'hotsaleco', 'hotsale_co', 'hotsalecolombia', 'ccce', 'ccceco', 'ccce2026', 'hotsael', 'hotslae', 'hotsalee', 'epsilon'
-  ];
-
-  var foreignKeywords = [
-    'newsletter', 'crm', 'email', 'sms', 'push', 'push_notification', 'whatsapp', 'telegram', 'facebook', 'instagram', 'cpc', 'paid', 'always_on', 'brand_always_on', 'pago', 'pauta', 'tiktok', 'pinterest', 'fb', 'ig', 'social', 'ppc', 'meta'
+    'hotsale', 'hot_sale', 'hot-sale', 'hot.sale',
+    'hotsale2026', 'hotsale_2026', 'hotsale-2026',
+    'hs2026', 'hs_2026', 'hs-2026',
+    'hotsale_mar', 'hotsale_marzo', 'hotsalemarzo',
+    'hotsale_oct', 'hotsale_octubre', 'hotsaleoct',
+    'hotsaleco', 'hotsale_co', 'hotsalecolombia',
+    'ccce', 'ccceco', 'ccce2026',
+    'hotsael', 'hotslae', 'hotsalee'
   ];
 
   var referrerDomains = [
     'hotsale.com.co', 'www.hotsale.com.co',
-    'hotsale.co',     'www.hotsale.co'
+    'hotsale.co', 'www.hotsale.co'
   ];
-  // ────────────────────────────────────────────────────────
 
-  var params    = new URLSearchParams(window.location.search);
+  var params = new URLSearchParams(window.location.search);
   var utmValues = [
-    params.get('utm_source'),
-    params.get('utm_medium'),
-    params.get('utm_campaign'),
-    params.get('utm_content'),
-    params.get('utm_term'),
-    params.get('utm_id')
+    params.get('utm_source'), params.get('utm_medium'),
+    params.get('utm_campaign'), params.get('utm_content'), params.get('utm_term'), params.get('utm_id')
   ];
 
-  // ── CONDITION B — Referrer is hotsale.com.co ─────────────
+  // CONDITION B — Referrer
   var conditionB = false;
   if (document.referrer) {
     try {
       var referrerHost = new URL(document.referrer).hostname.toLowerCase();
       for (var r = 0; r < referrerDomains.length; r++) {
-        if (referrerHost === referrerDomains[r]) {
-          conditionB = true;
-          break;
-        }
+        if (referrerHost === referrerDomains[r]) { conditionB = true; break; }
       }
     } catch(e) {}
   }
 
-  // ── CONDITION A — Hotsale keyword in any UTM ─────────────
-  // Only evaluated when B failed — saves processing
+  // CONDITION A — UTM keyword match
   var conditionA = false;
-  if (!conditionB) {
-    for (var i = 0; i < utmValues.length; i++) {
-      if (!utmValues[i]) continue;
-      var utmLower = utmValues[i].toLowerCase();
-      for (var k = 0; k < hotsaleKeywords.length; k++) {
-        if (utmLower.indexOf(hotsaleKeywords[k]) !== -1) {
-          conditionA = true;
-          break;
-        }
-      }
-      if (conditionA) break;
+  for (var i = 0; i < utmValues.length; i++) {
+    if (!utmValues[i]) continue;
+    var utmLower = utmValues[i].toLowerCase();
+    for (var k = 0; k < hotsaleKeywords.length; k++) {
+      if (utmLower.indexOf(hotsaleKeywords[k]) !== -1) { conditionA = true; break; }
     }
+    if (conditionA) break;
   }
 
-  // ── CONDITION C — No ally-owned signals in source/medium ─
-  // Only evaluated when B failed and A passed
-  var conditionC = true;
-  if (!conditionB && conditionA) {
-    var foreignUtmFields = [
-      params.get('utm_source'),
-      params.get('utm_medium'),
-      params.get('utm_campaign')
-    ];
-    for (var i = 0; i < foreignUtmFields.length; i++) {
-      if (!foreignUtmFields[i]) continue;
-      var fieldLower = foreignUtmFields[i].toLowerCase();
-      for (var f = 0; f < foreignKeywords.length; f++) {
-        if (fieldLower.indexOf(foreignKeywords[f]) !== -1) {
-          conditionC = false;
-          break;
-        }
-      }
-      if (!conditionC) break;
-    }
-  }
+  // GATE: B OR A
+  if (!conditionB && !conditionA) return;
 
-  // ── FINAL GATE ───────────────────────────────────────────
-  var isHotsale = conditionB || (conditionA && conditionC);
+  var detectionSignal = (conditionB && conditionA) ? 'referrer+utm' :
+                         conditionB                ? 'referrer_only' :
+                                                     'utm_only';
 
-  if (!isHotsale) return;
-
-
-  // ── STORE ────────────────────────────────────────────────
   var hsData = {
     utm_source:       params.get('utm_source')   || '',
     utm_medium:       params.get('utm_medium')   || '',
     utm_campaign:     params.get('utm_campaign') || '',
-    utm_content:      params.get('utm_content') || '',
-    utm_term:         params.get('utm_term') || '',
-    utm_id:           params.get('utm_id') || '',
-    store_domain:     window.location.hostname
+    utm_content:      params.get('utm_content')  || '',
+    utm_term:         params.get('utm_term')     || '',
+    store_domain:     window.location.hostname,
+    utm_id:         	params.get('utm_id')     || ''
   };
 
   try {
     sessionStorage.setItem('hotsale_data', JSON.stringify(hsData));
-    localStorage.setItem('hotsale_data',   JSON.stringify(hsData));
+    localStorage.setItem('hotsale_data', JSON.stringify(hsData));
   } catch(e) {}
-
 })();
+
 </script>
 <!-- End Hotsale UTM Capture -->
