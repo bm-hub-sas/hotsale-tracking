@@ -1,0 +1,3 @@
+00db005f45a4a55777ec7d92cc3352f36d0c2996c8cc16777d9c5badeeb97866  pixel1-todas-las-paginas.html
+ddc4afae622bc3f3e44636e788fc48119787876e1c3973586a3298817f89fccd  pixel2-gtm-confirmacion.html
+77abe06c3fa5cf659dc2c839da0da81616913e88b63e245acd92b774075a33dd  pixel2-shopify-customer-events.js
