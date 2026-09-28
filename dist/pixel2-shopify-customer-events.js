@@ -101,7 +101,7 @@ function classify(url, referrer, cfg) {
   var params = readParams(url, UTM_KEYS.concat(['hs_test']));
   var utms = {};
   for (var i = 0; i < UTM_KEYS.length; i++) {
-    utms[UTM_KEYS[i]] = clip(String(params[UTM_KEYS[i]] || '').replace(/^\s+|\s+$/g, ''), MAX_FIELD_LENGTH);
+    utms[UTM_KEYS[i]] = clip(String(params[UTM_KEYS[i]] || '').replace(/^\s+/, ''), MAX_FIELD_LENGTH).replace(/\s+$/, '');
   }
   var byReferrer = inList(hostOf(referrer), cfg.referrerDomains);
   var bySource = inList(utms.utm_source.toLowerCase(), cfg.hsSources);
@@ -200,49 +200,73 @@ function buildOrder(id, value, currency, source) {
   };
 }
 
-// One dataLayer entry -> { id, value, currency, source } or null.
-// Entries with neither an id nor a value are ignored so that empty shells
-// (e.g. { event: 'purchase' } without data) cannot hide a real order.
+// One dataLayer entry -> { id, value, currency, source } or null. Each known
+// format is tried in turn; the first one with an id or a value is used, so an
+// entry without data in one format (e.g. an empty GA4 "ecommerce" object next
+// to top-level fields) does not hide another. Refunds are never read.
 function readEntry(d) {
-  if (!d || typeof d !== 'object') return null;
-  var e = d.ecommerce;
+  if (!d || typeof d !== 'object' || d.event === 'refund') return null;
+  var e = d.ecommerce && typeof d.ecommerce === 'object' ? d.ecommerce : null;
   var p = d[2];
-  var found = null;
+  var candidates = [];
   if (d[0] === 'event' && d[1] === 'purchase' && p && typeof p === 'object') {
     // gtag.js pushes the arguments object of each call: ['event', 'purchase', {...}]
-    found = { id: p.transaction_id, value: p.value, currency: p.currency, source: 'gtag.value' };
-  } else if (e && typeof e === 'object' && (!isEmpty(e.transaction_id) || d.event === 'purchase')) {
+    candidates.push({ id: p.transaction_id, value: p.value, currency: p.currency, source: 'gtag.value' });
+  }
+  if (e && (!isEmpty(e.transaction_id) || d.event === 'purchase')) {
     // GA4 ecommerce
-    found = { id: e.transaction_id, value: e.value, currency: e.currency, source: 'ecommerce.value' };
-  } else if (e && typeof e === 'object' && e.purchase && e.purchase.actionField) {
+    candidates.push({ id: e.transaction_id, value: e.value, currency: e.currency, source: 'ecommerce.value' });
+  }
+  if (e && e.purchase && e.purchase.actionField) {
     // Universal Analytics enhanced ecommerce
     var af = e.purchase.actionField;
-    found = { id: af.id, value: af.revenue, currency: e.currencyCode, source: 'ecommerce.purchase.revenue' };
-  } else if (!isEmpty(d.transactionId)) {
-    // Universal Analytics standard ecommerce (also VTEX orderPlaced)
-    found = { id: d.transactionId, value: d.transactionTotal, currency: d.transactionCurrency, source: 'transactionTotal' };
-  } else if (d.event === 'purchase') {
-    found = { id: d.transaction_id, value: d.value, currency: d.currency, source: 'purchase.value' };
+    candidates.push({ id: af.id, value: af.revenue, currency: e.currencyCode, source: 'ecommerce.purchase.revenue' });
   }
-  if (!found || (isEmpty(found.id) && isEmpty(found.value))) return null;
-  return found;
+  if (!isEmpty(d.transactionId)) {
+    // Universal Analytics standard ecommerce (also VTEX orderPlaced)
+    candidates.push({ id: d.transactionId, value: d.transactionTotal, currency: d.transactionCurrency, source: 'transactionTotal' });
+  }
+  if (d.event === 'purchase') {
+    candidates.push({ id: d.transaction_id, value: d.value, currency: d.currency, source: 'purchase.value' });
+  }
+  for (var i = 0; i < candidates.length; i++) {
+    if (!isEmpty(candidates[i].id) || !isEmpty(candidates[i].value)) return candidates[i];
+  }
+  return null;
 }
 
 // extractOrder(dataLayer, override) -> order fields (see buildOrder).
 //   override: window.hotsaleOrder = { id, value, currency }, set by the ally
-//   when the platform has no dataLayer. Takes precedence when present.
-//   Otherwise the dataLayer is scanned from the END: the most recent entry wins.
+//   when the platform has no dataLayer. Used when it has an id or a value.
+//   Otherwise, the order is the one named by the MOST RECENT dataLayer entry
+//   that has an id; its value comes from the most recent entry for that same
+//   id with a usable value (a later tag may repeat the id without the value).
 function extractOrder(dataLayer, override) {
-  if (override && typeof override === 'object') {
+  if (override && typeof override === 'object' && (!isEmpty(override.id) || !isEmpty(override.value))) {
     return buildOrder(override.id, override.value, override.currency, 'hotsaleOrder.value');
   }
+  var found = [];
+  var i;
   if (dataLayer && typeof dataLayer.length === 'number') {
-    for (var i = dataLayer.length - 1; i >= 0; i--) {
-      var found = readEntry(dataLayer[i]);
-      if (found) return buildOrder(found.id, found.value, found.currency, found.source);
+    for (i = dataLayer.length - 1; i >= 0; i--) {
+      var f = readEntry(dataLayer[i]);
+      if (f) found.push(f);
     }
   }
-  return buildOrder('', null, '', 'none');
+  if (!found.length) return buildOrder('', null, '', 'none');
+  var id = '';
+  for (i = 0; i < found.length && !id; i++) id = normalizeId(found[i].id);
+  if (!id) return buildOrder(found[0].id, found[0].value, found[0].currency, found[0].source);
+  var pick = null;
+  for (i = 0; i < found.length; i++) {
+    if (normalizeId(found[i].id) !== id) continue;
+    if (!pick) pick = found[i];
+    if (parseAmount(found[i].value) > 0) {
+      pick = found[i];
+      break;
+    }
+  }
+  return buildOrder(pick.id, pick.value, pick.currency, pick.source);
 }
 // The stored touch and the payloads sent to the collector. Field order of the
 // payloads follows docs/contrato-collector.md.
@@ -250,6 +274,7 @@ function extractOrder(dataLayer, override) {
 var TOUCH_KEY = 'hotsale_touch_v2';
 var SENT_KEY_PREFIX = 'hotsale_sent_';
 var DAY_MS = 86400000;
+var REPEAT_WINDOW_MS = 30 * 60000;
 
 // The object stored under TOUCH_KEY.
 function buildTouch(hit, nowMs, storeDomain) {
@@ -282,15 +307,27 @@ function parseTouch(json) {
   return t;
 }
 
-// Two touches are the same if everything but landed_at matches: a reload of
-// the landing page in the same session is not a new touch.
+// Two touches are the same if their UTMs and is_test match. landed_at,
+// signal and store_domain are ignored: a reload of the landing page, or a
+// store that carries the UTMs over to internal links (the referrer is then
+// the store itself, so the signal changes), is not a new touch.
 function sameTouch(a, b) {
   if (!a || !b) return false;
-  var keys = ['signal', 'is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
+  var keys = ['is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
   for (var i = 0; i < keys.length; i++) {
     if (a[keys[i]] !== b[keys[i]]) return false;
   }
   return true;
+}
+
+// True if `touch` repeats the stored touch: same UTMs and is_test, landed less
+// than 30 minutes ago (in this tab or another). A repeat is not reported
+// again and does not move landed_at, so a reload or the same link opened in
+// two tabs is one visit, while the same link followed days later is a new one.
+function isRepeat(stored, touch, nowMs) {
+  if (!sameTouch(stored, touch)) return false;
+  var age = nowMs - Date.parse(stored.landed_at);
+  return age >= 0 && age < REPEAT_WINDOW_MS;
 }
 
 // The most recent of two touches (either may be null).
@@ -376,7 +413,8 @@ async function storageRemove(storage, key) {
 }
 
 // Some stores report order ids as "gid://shopify/OrderIdentity/5210499102",
-// others as "5210499102". Keep the number, which is what the ally sees in admin.
+// others as "5210499102". Keep the number: the order ID in the admin URL of the
+// order (not the order name such as #1001, which the event does not carry).
 function shopifyOrderId(id) {
   const s = id == null ? '' : String(id);
   return s.indexOf('gid://') === 0 ? s.slice(s.lastIndexOf('/') + 1) : s;
@@ -426,8 +464,9 @@ analytics.subscribe('page_viewed', async (event) => {
     if (!hit.isHotsale) return;
 
     const touch = buildTouch(hit, now, doc.location.hostname);
-    // Same touch already recorded in this session: do not report again.
-    if (sameTouch(await readTouch(browser.sessionStorage), touch)) return;
+    // Same touch recorded less than 30 minutes ago: do not report again.
+    const stored = latestTouch(await readTouch(browser.sessionStorage), await readTouch(browser.localStorage));
+    if (isRepeat(stored, touch, now)) return;
 
     const json = JSON.stringify(touch);
     await storageSet(browser.sessionStorage, TOUCH_KEY, json);
@@ -472,6 +511,7 @@ analytics.subscribe('checkout_completed', async (event) => {
     const isTest = touch.is_test === true || readParams(doc.location.search, ['hs_test']).hs_test === '1';
     await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, SITE_KEY, CONFIG));
 
-    if (order.order_status === 'complete') await forgetTouch();
+    // One touch, one order: an order with an id uses up the touch.
+    if (order.order_id) await forgetTouch();
   } catch (e) {}
 });

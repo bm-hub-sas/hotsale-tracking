@@ -44,7 +44,7 @@ const INCLUDES = {
   window.__ally.before = {
     keys: Object.keys(window),
     calls: window.__ally.calls.length,
-    dataLayer: window.dataLayer ? window.dataLayer.length : null
+    dataLayer: window.dataLayer ? JSON.stringify(window.dataLayer) : null
   };
 </script>`,
 };

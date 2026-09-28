@@ -91,49 +91,73 @@ function buildOrder(id, value, currency, source) {
   };
 }
 
-// One dataLayer entry -> { id, value, currency, source } or null.
-// Entries with neither an id nor a value are ignored so that empty shells
-// (e.g. { event: 'purchase' } without data) cannot hide a real order.
+// One dataLayer entry -> { id, value, currency, source } or null. Each known
+// format is tried in turn; the first one with an id or a value is used, so an
+// entry without data in one format (e.g. an empty GA4 "ecommerce" object next
+// to top-level fields) does not hide another. Refunds are never read.
 function readEntry(d) {
-  if (!d || typeof d !== 'object') return null;
-  var e = d.ecommerce;
+  if (!d || typeof d !== 'object' || d.event === 'refund') return null;
+  var e = d.ecommerce && typeof d.ecommerce === 'object' ? d.ecommerce : null;
   var p = d[2];
-  var found = null;
+  var candidates = [];
   if (d[0] === 'event' && d[1] === 'purchase' && p && typeof p === 'object') {
     // gtag.js pushes the arguments object of each call: ['event', 'purchase', {...}]
-    found = { id: p.transaction_id, value: p.value, currency: p.currency, source: 'gtag.value' };
-  } else if (e && typeof e === 'object' && (!isEmpty(e.transaction_id) || d.event === 'purchase')) {
+    candidates.push({ id: p.transaction_id, value: p.value, currency: p.currency, source: 'gtag.value' });
+  }
+  if (e && (!isEmpty(e.transaction_id) || d.event === 'purchase')) {
     // GA4 ecommerce
-    found = { id: e.transaction_id, value: e.value, currency: e.currency, source: 'ecommerce.value' };
-  } else if (e && typeof e === 'object' && e.purchase && e.purchase.actionField) {
+    candidates.push({ id: e.transaction_id, value: e.value, currency: e.currency, source: 'ecommerce.value' });
+  }
+  if (e && e.purchase && e.purchase.actionField) {
     // Universal Analytics enhanced ecommerce
     var af = e.purchase.actionField;
-    found = { id: af.id, value: af.revenue, currency: e.currencyCode, source: 'ecommerce.purchase.revenue' };
-  } else if (!isEmpty(d.transactionId)) {
-    // Universal Analytics standard ecommerce (also VTEX orderPlaced)
-    found = { id: d.transactionId, value: d.transactionTotal, currency: d.transactionCurrency, source: 'transactionTotal' };
-  } else if (d.event === 'purchase') {
-    found = { id: d.transaction_id, value: d.value, currency: d.currency, source: 'purchase.value' };
+    candidates.push({ id: af.id, value: af.revenue, currency: e.currencyCode, source: 'ecommerce.purchase.revenue' });
   }
-  if (!found || (isEmpty(found.id) && isEmpty(found.value))) return null;
-  return found;
+  if (!isEmpty(d.transactionId)) {
+    // Universal Analytics standard ecommerce (also VTEX orderPlaced)
+    candidates.push({ id: d.transactionId, value: d.transactionTotal, currency: d.transactionCurrency, source: 'transactionTotal' });
+  }
+  if (d.event === 'purchase') {
+    candidates.push({ id: d.transaction_id, value: d.value, currency: d.currency, source: 'purchase.value' });
+  }
+  for (var i = 0; i < candidates.length; i++) {
+    if (!isEmpty(candidates[i].id) || !isEmpty(candidates[i].value)) return candidates[i];
+  }
+  return null;
 }
 
 // extractOrder(dataLayer, override) -> order fields (see buildOrder).
 //   override: window.hotsaleOrder = { id, value, currency }, set by the ally
-//   when the platform has no dataLayer. Takes precedence when present.
-//   Otherwise the dataLayer is scanned from the END: the most recent entry wins.
+//   when the platform has no dataLayer. Used when it has an id or a value.
+//   Otherwise, the order is the one named by the MOST RECENT dataLayer entry
+//   that has an id; its value comes from the most recent entry for that same
+//   id with a usable value (a later tag may repeat the id without the value).
 function extractOrder(dataLayer, override) {
-  if (override && typeof override === 'object') {
+  if (override && typeof override === 'object' && (!isEmpty(override.id) || !isEmpty(override.value))) {
     return buildOrder(override.id, override.value, override.currency, 'hotsaleOrder.value');
   }
+  var found = [];
+  var i;
   if (dataLayer && typeof dataLayer.length === 'number') {
-    for (var i = dataLayer.length - 1; i >= 0; i--) {
-      var found = readEntry(dataLayer[i]);
-      if (found) return buildOrder(found.id, found.value, found.currency, found.source);
+    for (i = dataLayer.length - 1; i >= 0; i--) {
+      var f = readEntry(dataLayer[i]);
+      if (f) found.push(f);
     }
   }
-  return buildOrder('', null, '', 'none');
+  if (!found.length) return buildOrder('', null, '', 'none');
+  var id = '';
+  for (i = 0; i < found.length && !id; i++) id = normalizeId(found[i].id);
+  if (!id) return buildOrder(found[0].id, found[0].value, found[0].currency, found[0].source);
+  var pick = null;
+  for (i = 0; i < found.length; i++) {
+    if (normalizeId(found[i].id) !== id) continue;
+    if (!pick) pick = found[i];
+    if (parseAmount(found[i].value) > 0) {
+      pick = found[i];
+      break;
+    }
+  }
+  return buildOrder(pick.id, pick.value, pick.currency, pick.source);
 }
 
 // @strip-start

@@ -8,6 +8,7 @@
 var TOUCH_KEY = 'hotsale_touch_v2';
 var SENT_KEY_PREFIX = 'hotsale_sent_';
 var DAY_MS = 86400000;
+var REPEAT_WINDOW_MS = 30 * 60000;
 
 // The object stored under TOUCH_KEY.
 function buildTouch(hit, nowMs, storeDomain) {
@@ -40,15 +41,27 @@ function parseTouch(json) {
   return t;
 }
 
-// Two touches are the same if everything but landed_at matches: a reload of
-// the landing page in the same session is not a new touch.
+// Two touches are the same if their UTMs and is_test match. landed_at,
+// signal and store_domain are ignored: a reload of the landing page, or a
+// store that carries the UTMs over to internal links (the referrer is then
+// the store itself, so the signal changes), is not a new touch.
 function sameTouch(a, b) {
   if (!a || !b) return false;
-  var keys = ['signal', 'is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
+  var keys = ['is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
   for (var i = 0; i < keys.length; i++) {
     if (a[keys[i]] !== b[keys[i]]) return false;
   }
   return true;
+}
+
+// True if `touch` repeats the stored touch: same UTMs and is_test, landed less
+// than 30 minutes ago (in this tab or another). A repeat is not reported
+// again and does not move landed_at, so a reload or the same link opened in
+// two tabs is one visit, while the same link followed days later is a new one.
+function isRepeat(stored, touch, nowMs) {
+  if (!sameTouch(stored, touch)) return false;
+  var age = nowMs - Date.parse(stored.landed_at);
+  return age >= 0 && age < REPEAT_WINDOW_MS;
 }
 
 // The most recent of two touches (either may be null).
@@ -118,6 +131,7 @@ module.exports = {
   buildTouch: buildTouch,
   parseTouch: parseTouch,
   sameTouch: sameTouch,
+  isRepeat: isRepeat,
   latestTouch: latestTouch,
   isExpired: isExpired,
   touchPayload: touchPayload,

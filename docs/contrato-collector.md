@@ -40,13 +40,13 @@ Los campos llegan siempre, en este orden. Ningún campo lleva datos personales.
 |---|---|:-:|:-:|---|
 | `v` | número | ✓ | ✓ | Siempre `2` |
 | `pixel_version` | texto | ✓ | ✓ | Semver del snippet, p. ej. `2.0.0` |
-| `site_key` | texto | ✓ | ✓ | Emitido por MarOS por aliado. Es público. `REEMPLAZAR_SITE_KEY` indica un snippet sin configurar |
+| `site_key` | texto | ✓ | ✓ | Emitido por Hot Sale (MarOS), uno por aliado. Es público. `REEMPLAZAR_SITE_KEY` indica un snippet sin configurar |
 | `event` | texto | ✓ | ✓ | `touch` o `purchase` |
 | `store_domain` | texto | ✓ | ✓ | `location.hostname` de la página que envía |
-| `order_id` | texto | | ✓ | Máx. 100 caracteres. `""` si no hay. Nunca `unknown`. Shopify: el número del pedido (se quita el prefijo `gid://shopify/OrderIdentity/`) |
+| `order_id` | texto | | ✓ | Máx. 100 caracteres. `""` si no hay. Nunca `unknown`. Shopify: el ID interno del pedido, el que aparece en la URL del pedido en el administrador, no el nombre `#1001`. Se quita el prefijo `gid://shopify/OrderIdentity/` |
 | `order_value` | número | | ✓ | `0` si falta, no es numérico o es ambiguo (ver [Valor del pedido](#valor-del-pedido)) |
 | `order_value_raw` | texto | | ✓ | El valor tal como lo expone la página (máx. 50 caracteres). `""` si no hay |
-| `currency` | texto | | ✓ | ISO 4217 en mayúsculas o `""`. **El píxel nunca asume COP** |
+| `currency` | texto | | ✓ | Tres letras en mayúsculas o `""`. Se espera ISO 4217, pero el píxel no la valida contra la lista. **El píxel nunca asume COP** |
 | `order_status` | texto | | ✓ | `complete` si `order_id` no es vacío **y** `order_value > 0`; si no, `incomplete` |
 | `value_source` | texto | | ✓ | Ver tabla de fuentes |
 | `signal` | texto | ✓ | ✓ | `referrer+utm`, `referrer_only` o `utm_only` |
@@ -60,7 +60,7 @@ Los campos llegan siempre, en este orden. Ningún campo lleva datos personales.
 | Valor | De dónde sale |
 |---|---|
 | `hotsaleOrder.value` | `window.hotsaleOrder = {id, value, currency}`, definido por el aliado. Tiene prioridad sobre el `dataLayer` |
-| `ecommerce.value` | GA4: `{event:'purchase', ecommerce:{transaction_id, value, currency}}` |
+| `ecommerce.value` | GA4: entradas con `ecommerce.transaction_id` o con `event:'purchase'` y un objeto `ecommerce` |
 | `gtag.value` | Llamada de gtag.js `('event', 'purchase', {transaction_id, value, currency})` que queda en el `dataLayer` |
 | `ecommerce.purchase.revenue` | Universal Analytics enhanced ecommerce: `ecommerce.purchase.actionField.{id, revenue}` y `ecommerce.currencyCode` |
 | `transactionTotal` | Universal Analytics estándar y VTEX `orderPlaced`: `transactionId`, `transactionTotal`, `transactionCurrency` |
@@ -68,11 +68,17 @@ Los campos llegan siempre, en este orden. Ningún campo lleva datos personales.
 | `shopify.totalPrice` | Shopify `checkout.totalPrice`. **Incluye envío e impuestos** |
 | `none` | No se encontró valor |
 
-El `dataLayer` se recorre **desde el final**: gana la entrada de compra más reciente. Se ignoran las entradas que no tienen ni número de pedido ni valor. Lo que cada aliado pone en `value` (con o sin envío o impuestos) depende de su implementación.
+Así se elige el pedido en el `dataLayer`:
+
+- Se ignoran las entradas `event: 'refund'` y las que no tienen ni número de pedido ni valor. Dentro de una entrada se prueban los formatos en el orden de la tabla.
+- El pedido es el que nombra **la entrada más reciente que tiene número**.
+- El valor sale de la entrada más reciente de ese mismo pedido que tenga un valor utilizable. Así, una etiqueta posterior que repite el número sin el valor (por ejemplo, de afiliados) no borra el valor, y una compra anterior nunca reemplaza al pedido más reciente.
+
+Lo que cada aliado pone en `value` (con o sin envío o impuestos) depende de su implementación.
 
 ### Valor del pedido
 
-Los números se usan tal cual. Los textos siguen esta regla estricta, sin adivinar separadores de miles:
+Los números mayores que 0 se usan tal cual; 0, negativos, `NaN` o infinitos dan 0. Los textos siguen esta regla estricta, sin adivinar separadores de miles:
 
 | Texto | Resultado | Por qué |
 |---|---|---|
@@ -87,15 +93,18 @@ Cuando el valor es ambiguo, `order_value_raw` lleva el texto original. El collec
 
 ## Eventos
 
-- **`touch`**: lo envía la captura (Pixel 1, o `page_viewed` en Shopify) cuando registra un toque de Hot Sale nuevo. Si el mismo toque se vuelve a ver en la misma sesión (misma señal, mismos UTM y mismo `is_test`), no se reenvía. Sirve para la métrica de sesiones directas y para que el aliado verifique la instalación.
-- **`purchase`**: lo envía la conversión (Pixel 2, o `checkout_completed` en Shopify) si hay un toque de menos de 30 días (`MAX_TOUCH_AGE_DAYS`). Se envía aunque el pedido esté incompleto. En una misma sesión, un pedido se envía como máximo una vez `incomplete` y una vez `complete`. Después de un envío `complete`, el toque se borra del navegador.
+- **`touch`**: lo envía la captura (Pixel 1, o `page_viewed` en Shopify) cuando registra un toque de Hot Sale. No se reenvía si repite el toque guardado (mismos UTM y mismo `is_test`) y ese toque llegó hace menos de 30 minutos, en la misma pestaña o en otra. En ese caso tampoco cambia `landed_at`, aunque cambie la señal (por ejemplo, si la tienda conserva los UTM en sus enlaces internos). Si el navegador bloquea el almacenamiento, cada llegada genera un `touch`. Sirve para la métrica de sesiones directas y para que el aliado verifique la instalación.
+- **`purchase`**: lo envía la conversión (Pixel 2, o `checkout_completed` en Shopify) si hay un toque de hasta 30 días (`MAX_TOUCH_AGE_DAYS`) y con fecha no más de un día en el futuro. Se envía aunque el pedido esté incompleto.
+  - Si el pedido tiene `order_id`, completo o no, el toque se borra después del envío: un toque, un pedido.
+  - Si no tiene `order_id`, el toque se conserva para que una recarga con los datos completos pueda reportarlo.
+  - En una misma pestaña, un pedido se envía como máximo una vez `incomplete` y una vez `complete`.
 
 ## Qué debe hacer el collector
 
 1. **Validar**: `v === 2`; `event` ∈ {`touch`, `purchase`}; tipos correctos; cuerpo ≤ 8 KB; `site_key` existente y distinto de `REEMPLAZAR_SITE_KEY`.
 2. **Comprobar el origen**: el host de `Origin` y `store_domain` deben corresponder al dominio registrado para el `site_key`. Para aliados Shopify, aceptar `Origin: null` y validar entonces solo `store_domain`.
 3. **No confiar ciegamente**: el `site_key` es público, así que cualquiera puede enviar eventos falsos. Aplicar un límite de peticiones por IP y por `site_key`, y marcar anomalías (valores extremos, ráfagas, pedidos sin `touch` previo en toda la base).
-4. **Deduplicar compras** por (`site_key`, `order_id`). Un `complete` reemplaza a un `incomplete` del mismo pedido. Los `incomplete` sin `order_id` no se pueden deduplicar entre sesiones.
+4. **Deduplicar compras** por (`site_key`, `order_id`), y contar como máximo un pedido por toque (`site_key`, `landed_at`, UTM). Deduplicar los `touch` por las mismas claves. Un `complete` reemplaza a un `incomplete` del mismo pedido. Los `incomplete` sin `order_id` no se pueden deduplicar entre sesiones.
 5. **Excluir pruebas**: `is_test: true` no cuenta en los reportes.
 6. **Ventana**: contar compras recibidas hasta `[N días después del 23 de octubre de 2026 — DEFINIR con la CCCE]`. Para decidir si una compra entra en la ventana, usar la **hora de recepción del servidor**, no `sent_at`, porque el reloj del navegador puede estar mal. `landed_at` sirve solo de forma relativa (`sent_at − landed_at`).
 7. **Monedas**: no convertir ni asumir. `currency: ""` es un dato faltante, no COP.

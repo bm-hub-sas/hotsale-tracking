@@ -28,7 +28,12 @@ Siga [docs/pruebas.md](pruebas.md). Si su tienda pide consentimiento de cookies,
 ## Qué hace, en Shopify
 
 - En cada página que ve el visitante (evento `page_viewed`), el píxel lee la URL y el referrer reales. Si la visita es un toque de Hot Sale, lo guarda en el almacenamiento de su tienda y envía un `touch`.
-- Cuando se completa una compra (evento `checkout_completed`), lee el toque y envía un `purchase` con el número del pedido, `totalPrice.amount` (el total, que **incluye envío e impuestos**) y `totalPrice.currencyCode`. Del pedido no lee nada más.
+- Cuando se completa una compra (evento `checkout_completed`), lee el toque y envía un `purchase` con:
+  - el ID del pedido (el número largo de la URL del pedido en el administrador, no el nombre `#1001`),
+  - `totalPrice.amount` (el total, que **incluye envío e impuestos**),
+  - `totalPrice.currencyCode` (o `checkout.currencyCode` si falta).
+
+  Del pedido no lee nada más.
 - Usa solo la API de píxeles de Shopify: `analytics.subscribe`, `browser.localStorage`, `browser.sessionStorage` y `browser.sendBeacon` (con `fetch` como respaldo). No usa cookies.
 
 ## Límites conocidos
@@ -36,7 +41,7 @@ Siga [docs/pruebas.md](pruebas.md). Si su tienda pide consentimiento de cookies,
 - **Mismo dominio.** El toque se guarda en el almacenamiento del dominio donde el visitante llega, y la compra se lee en el dominio del checkout. Shopify procesa el checkout en el dominio de la tienda. Si la tienda responde en `www.` y sin `www.`, o en varios dominios de mercado, configure la redirección al dominio principal para que todo ocurra en un solo dominio.
 - **Shop Pay o la app Shop.** Si la compra termina dentro de la app Shop, es posible que no comparta el almacenamiento de su tienda. No está verificado.
 - **Tiendas headless** (checkout en otro subdominio): use la [guía de GTM](instalacion-gtm.md) y avísenos.
-- **Consentimiento.** En los mercados configurados para pedir consentimiento, el píxel solo corre si el visitante acepta la analítica.
+- **Consentimiento.** En los mercados configurados para pedir consentimiento, el píxel solo corre si el visitante acepta la analítica. Si acepta después de cargar la página de llegada, Shopify no documenta si el píxel recibe el `page_viewed` de esa página; esa llegada podría perderse.
 
 ## Alternativa, solo si la verificación falla
 
@@ -57,5 +62,5 @@ Diferencia con la versión de marzo: los píxeles personalizados corren en un if
 
 Otros detalles:
 
-- En algunas tiendas, `order.id` llega como `gid://shopify/OrderIdentity/5210499102` y en otras como `5210499102`. El píxel envía siempre el número.
+- En algunas tiendas, `order.id` llega como `gid://shopify/OrderIdentity/5210499102` y en otras como `5210499102`. El píxel envía siempre el número. Es el ID interno del pedido; el evento no trae el nombre `#1001`.
 - Si `browser.sendBeacon` deja de existir, el píxel usa `fetch`. Ese `fetch` sale del iframe aislado con `Origin: null` (ver [contrato del collector](contrato-collector.md#encabezado-origin)).

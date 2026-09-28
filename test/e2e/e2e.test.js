@@ -54,7 +54,7 @@ async function assertAllyUntouched(page) {
     newGlobals: Object.keys(window).filter((k) => window.__ally.before.keys.indexOf(k) === -1),
     newCalls: window.__ally.calls.slice(window.__ally.before.calls),
     dataLayerBefore: window.__ally.before.dataLayer,
-    dataLayerAfter: window.dataLayer ? window.dataLayer.length : null,
+    dataLayerAfter: window.dataLayer ? JSON.stringify(window.dataLayer) : null,
   }));
   assert.deepEqual(s.newGlobals, [], 'Hot Sale code added globals');
   assert.deepEqual(s.newCalls, [], "Hot Sale code called the ally's fbq/gtag");
@@ -168,6 +168,18 @@ test('reloads do not send twice (landing touch, thank-you purchase)', async () =
   await context.close();
 });
 
+test('UTMs carried over to internal links are not a new touch', async () => {
+  const { context, network, page } = await newVisitor();
+  await arriveFromHotsale(page, '/landing.html?utm_source=hotsale&utm_campaign=hs26oct');
+  // Same UTMs on the next page, but the referrer is now the store itself.
+  await visit(page, '/product.html?utm_source=hotsale&utm_campaign=hs26oct');
+  await visit(page, '/gracias-ga4.html');
+  const sent = await collected(2, 800);
+  assert.deepEqual(sent.map((p) => [p.event, p.signal]), [['touch', 'referrer+utm'], ['purchase', 'referrer+utm']]);
+  assertCleanTraffic(network);
+  await context.close();
+});
+
 test('USD order arrives with currency USD (and signal referrer+utm)', async () => {
   const { context, network, page } = await newVisitor();
   await arriveFromHotsale(page, '/landing.html?utm_source=hotsale&utm_campaign=hs26oct');
@@ -225,6 +237,34 @@ test('no order data -> incomplete, touch kept; a later page with the order repor
   assert.equal(sent[2].order_id, 'WC-4004');
   assert.equal(sent[2].value_source, 'hotsaleOrder.value');
   assert.deepEqual(await storedTouch(page), { local: null, session: null });
+  assertCleanTraffic(network);
+  await context.close();
+});
+
+test('ambiguous value "250.000" -> incomplete with the raw text; the order still uses up the touch', async () => {
+  const { context, network, page } = await newVisitor();
+  await visit(page, '/landing.html?utm_source=hotsale');
+  await visit(page, '/gracias-ambiguo.html');
+  const [, purchase] = await collected(2);
+  assert.equal(purchase.order_id, 'AMB-5005');
+  assert.equal(purchase.order_value, 0);
+  assert.equal(purchase.order_value_raw, '250.000');
+  assert.equal(purchase.order_status, 'incomplete');
+  assert.deepEqual(await storedTouch(page), { local: null, session: null }, 'one touch, one order');
+  // A second order later in the same browser is not claimed by the same touch.
+  await visit(page, '/gracias-ga4.html');
+  assert.equal((await collected(2, 800)).length, 2);
+  assertCleanTraffic(network);
+  await context.close();
+});
+
+test('the same Hot Sale link opened in two tabs is one touch', async () => {
+  const { context, network, page } = await newVisitor();
+  await visit(page, '/landing.html?utm_source=hotsale&utm_campaign=hs26oct');
+  const second = await context.newPage();
+  await visit(second, '/landing.html?utm_source=hotsale&utm_campaign=hs26oct');
+  const sent = await collected(1, 800);
+  assert.deepEqual(sent.map((p) => p.event), ['touch']);
   assertCleanTraffic(network);
   await context.close();
 });

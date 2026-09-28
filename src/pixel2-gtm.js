@@ -10,8 +10,9 @@
 //      dataLayer (lib/extract-order.js). Nothing about the buyer is read.
 //   3. Sends one "purchase" request to the collector, complete or not; the
 //      collector applies the attribution rules.
-//   4. Complete order -> deletes the touch (one touch, one purchase).
-//      Incomplete -> keeps it, so a reload with full order data can report.
+//   4. Order with an id (complete or not) -> deletes the touch: one touch,
+//      one order. No order id -> keeps it, so a reload with full order data
+//      can still report.
 // Does not push to the dataLayer, does not call or load any other tag.
 (function () {
   'use strict';
@@ -49,6 +50,6 @@
     var isTest = touch.is_test === true || readParams(location.search, ['hs_test']).hs_test === '1';
     send(CONFIG.collectorUrl, purchasePayload(touch, order, location.hostname, now, isTest, SITE_KEY, CONFIG));
 
-    if (order.order_status === 'complete') forgetTouch();
+    if (order.order_id) forgetTouch();
   } catch (e) {}
 })();

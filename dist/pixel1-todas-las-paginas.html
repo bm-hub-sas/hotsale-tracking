@@ -11,7 +11,8 @@
 //      a stored touch older than CONFIG.maxTouchAgeDays.
 //   2. Classifies the visit (lib/classify.js). Not a Hot Sale touch -> stop.
 //   3. Stores the touch under "hotsale_touch_v2" in sessionStorage and
-//      localStorage, and reports it once per session with event "touch".
+//      localStorage and reports it with event "touch", unless it repeats the
+//      stored touch within 30 minutes (lib/touch.js, isRepeat).
 // No listeners, no timers, no DOM changes, no cookies.
 (function () {
   'use strict';
@@ -96,7 +97,7 @@
     var params = readParams(url, UTM_KEYS.concat(['hs_test']));
     var utms = {};
     for (var i = 0; i < UTM_KEYS.length; i++) {
-      utms[UTM_KEYS[i]] = clip(String(params[UTM_KEYS[i]] || '').replace(/^\s+|\s+$/g, ''), MAX_FIELD_LENGTH);
+      utms[UTM_KEYS[i]] = clip(String(params[UTM_KEYS[i]] || '').replace(/^\s+/, ''), MAX_FIELD_LENGTH).replace(/\s+$/, '');
     }
     var byReferrer = inList(hostOf(referrer), cfg.referrerDomains);
     var bySource = inList(utms.utm_source.toLowerCase(), cfg.hsSources);
@@ -112,6 +113,7 @@
   var TOUCH_KEY = 'hotsale_touch_v2';
   var SENT_KEY_PREFIX = 'hotsale_sent_';
   var DAY_MS = 86400000;
+  var REPEAT_WINDOW_MS = 30 * 60000;
 
   // The object stored under TOUCH_KEY.
   function buildTouch(hit, nowMs, storeDomain) {
@@ -144,15 +146,27 @@
     return t;
   }
 
-  // Two touches are the same if everything but landed_at matches: a reload of
-  // the landing page in the same session is not a new touch.
+  // Two touches are the same if their UTMs and is_test match. landed_at,
+  // signal and store_domain are ignored: a reload of the landing page, or a
+  // store that carries the UTMs over to internal links (the referrer is then
+  // the store itself, so the signal changes), is not a new touch.
   function sameTouch(a, b) {
     if (!a || !b) return false;
-    var keys = ['signal', 'is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
+    var keys = ['is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
     for (var i = 0; i < keys.length; i++) {
       if (a[keys[i]] !== b[keys[i]]) return false;
     }
     return true;
+  }
+
+  // True if `touch` repeats the stored touch: same UTMs and is_test, landed less
+  // than 30 minutes ago (in this tab or another). A repeat is not reported
+  // again and does not move landed_at, so a reload or the same link opened in
+  // two tabs is one visit, while the same link followed days later is a new one.
+  function isRepeat(stored, touch, nowMs) {
+    if (!sameTouch(stored, touch)) return false;
+    var age = nowMs - Date.parse(stored.landed_at);
+    return age >= 0 && age < REPEAT_WINDOW_MS;
   }
 
   // The most recent of two touches (either may be null).
@@ -274,9 +288,13 @@
 
     var touch = buildTouch(hit, now, location.hostname);
 
-    // Same touch already recorded in this session (e.g. a reload of the
-    // landing page): keep the original landed_at and do not report again.
-    if (sameTouch(parseTouch(storageGet('sessionStorage', TOUCH_KEY)), touch)) return;
+    // Same touch recorded less than 30 minutes ago (a reload, or the same link
+    // in another tab): keep the original landed_at and do not report again.
+    var stored = latestTouch(
+      parseTouch(storageGet('sessionStorage', TOUCH_KEY)),
+      parseTouch(storageGet('localStorage', TOUCH_KEY))
+    );
+    if (isRepeat(stored, touch, now)) return;
 
     // A new Hot Sale touch replaces the previous one. Visits that are not
     // Hot Sale touches never reach this point, so they never clear it.

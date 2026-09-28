@@ -47,7 +47,8 @@ async function storageRemove(storage, key) {
 }
 
 // Some stores report order ids as "gid://shopify/OrderIdentity/5210499102",
-// others as "5210499102". Keep the number, which is what the ally sees in admin.
+// others as "5210499102". Keep the number: the order ID in the admin URL of the
+// order (not the order name such as #1001, which the event does not carry).
 function shopifyOrderId(id) {
   const s = id == null ? '' : String(id);
   return s.indexOf('gid://') === 0 ? s.slice(s.lastIndexOf('/') + 1) : s;
@@ -97,8 +98,9 @@ analytics.subscribe('page_viewed', async (event) => {
     if (!hit.isHotsale) return;
 
     const touch = buildTouch(hit, now, doc.location.hostname);
-    // Same touch already recorded in this session: do not report again.
-    if (sameTouch(await readTouch(browser.sessionStorage), touch)) return;
+    // Same touch recorded less than 30 minutes ago: do not report again.
+    const stored = latestTouch(await readTouch(browser.sessionStorage), await readTouch(browser.localStorage));
+    if (isRepeat(stored, touch, now)) return;
 
     const json = JSON.stringify(touch);
     await storageSet(browser.sessionStorage, TOUCH_KEY, json);
@@ -143,6 +145,7 @@ analytics.subscribe('checkout_completed', async (event) => {
     const isTest = touch.is_test === true || readParams(doc.location.search, ['hs_test']).hs_test === '1';
     await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, SITE_KEY, CONFIG));
 
-    if (order.order_status === 'complete') await forgetTouch();
+    // One touch, one order: an order with an id uses up the touch.
+    if (order.order_id) await forgetTouch();
   } catch (e) {}
 });

@@ -107,3 +107,8 @@ test('a full URL works too; the fragment is ignored', () => {
   assert.equal(run('https://tienda.com/p?utm_source=hotsale#utm_source=google').signal, 'utm_only');
   assert.equal(run('https://tienda.com/p#?utm_source=hotsale').isHotsale, false);
 });
+
+test('clipping never leaves a trailing space', () => {
+  const r = run('?utm_source=hotsale&utm_campaign=' + 'x'.repeat(199) + '%20yyy');
+  assert.equal(r.utms.utm_campaign, 'x'.repeat(199));
+});

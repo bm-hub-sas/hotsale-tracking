@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { TARGETS, render, checkSnippet, sha256, CONFIG } = require('../scripts/build.js');
+const { TARGETS, render, checkSnippet, sha256, prepareLib, CONFIG } = require('../scripts/build.js');
 
 const DIST = path.join(__dirname, '..', 'dist');
 const gtm = TARGETS.find((t) => t.src === 'pixel2-gtm.js');
@@ -51,6 +51,7 @@ test('the checks catch what they claim to catch', () => {
     'const y = 2;': 'not valid ES5',
     'var z = `t`;': 'not valid ES5',
     "var g = '{{Page URL}}';": '{{',
+    'module.exports = {};': 'module.exports',
   };
   for (const [code, expected] of Object.entries(cases)) {
     const errors = checkSnippet(gtm, inject(code));
@@ -69,4 +70,11 @@ test('the SITE_KEY placeholder is present exactly once per snippet', () => {
   for (const t of TARGETS) {
     assert.equal(render(t).split("'REEMPLAZAR_SITE_KEY'").length - 1, 1, t.out);
   }
+});
+
+test('CRLF sources inline exactly like LF sources (same SHA-256 on every OS)', () => {
+  const lf = fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'touch.js'), 'utf8');
+  const crlf = lf.replace(/\n/g, '\r\n');
+  assert.equal(prepareLib(crlf, '  '), prepareLib(lf, '  '));
+  assert.ok(!prepareLib(crlf, '').includes('module.exports'));
 });

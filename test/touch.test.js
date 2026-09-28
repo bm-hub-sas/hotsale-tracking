@@ -35,9 +35,10 @@ test('parseTouch accepts v2 only', () => {
   assert.equal(t.parseTouch('null'), null);
 });
 
-test('sameTouch ignores landed_at and store_domain only', () => {
+test('sameTouch compares UTMs and is_test only', () => {
   assert.equal(t.sameTouch(touch, { ...touch, landed_at: '2026-10-20T00:00:00.000Z' }), true);
   assert.equal(t.sameTouch(touch, { ...touch, store_domain: 'www.tienda.com' }), true);
+  assert.equal(t.sameTouch(touch, { ...touch, signal: 'utm_only' }), true, 'UTMs carried to internal links');
   assert.equal(t.sameTouch(touch, { ...touch, utm_campaign: 'other' }), false);
   assert.equal(t.sameTouch(touch, { ...touch, is_test: true }), false);
   assert.equal(t.sameTouch(null, touch), false);
@@ -90,4 +91,13 @@ test('shouldSend: never twice with the same status; incomplete may upgrade once'
   assert.equal(t.shouldSend('incomplete', 'incomplete'), false);
   assert.equal(t.shouldSend('complete', 'complete'), false);
   assert.equal(t.shouldSend('complete', 'incomplete'), false);
+});
+
+test('isRepeat: same touch less than 30 minutes old, in any tab', () => {
+  const again = t.buildTouch(hit, NOW + 29 * 60000, 'tienda.com');
+  assert.equal(t.isRepeat(touch, again, NOW + 29 * 60000), true);
+  assert.equal(t.isRepeat(touch, again, NOW + 30 * 60000), false, '30 minutes later is a new touch');
+  assert.equal(t.isRepeat(touch, { ...again, utm_campaign: 'otra' }, NOW + 60000), false);
+  assert.equal(t.isRepeat(null, again, NOW), false);
+  assert.equal(t.isRepeat(touch, again, NOW - 60000), false, 'stored touch in the future');
 });

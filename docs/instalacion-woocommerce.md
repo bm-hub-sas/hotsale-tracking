@@ -13,10 +13,9 @@ Antes de empezar, si tiene la versión de marzo de 2026, elimínela: las etiquet
 
 ## Opción B — sin GTM, con `functions.php`
 
-Agregue este código en el `functions.php` de su tema hijo o con un plugin de fragmentos de código (Code Snippets o similar). En los dos lugares marcados, pegue el contenido completo de cada archivo tal como lo recibió, con sus etiquetas `<script>`.
+Agregue este código al final del `functions.php` de su tema hijo, o con un plugin de fragmentos de código (Code Snippets o similar). El archivo ya empieza con `<?php`, así que **no agregue otra línea `<?php`**, porque eso rompe el sitio. En los dos lugares marcados, pegue el contenido completo de cada archivo tal como lo recibió, con sus etiquetas `<script>`.
 
 ```php
-<?php
 // Hot Sale — Pixel 1: todas las páginas.
 add_action( 'wp_footer', function () {
 	?>
@@ -39,10 +38,9 @@ Además, agregue el bloque de la sección siguiente.
 
 ## Datos del pedido
 
-WooCommerce no expone el pedido en el `dataLayer` por defecto. Este código lo deja disponible como `window.hotsaleOrder` en la página de pedido recibido, y solo incluye el número, el valor y la moneda:
+WooCommerce no expone el pedido en el `dataLayer` por defecto. Este código (también sin `<?php` al inicio) lo deja disponible como `window.hotsaleOrder` en la página de pedido recibido, y solo incluye el número, el valor y la moneda:
 
 ```php
-<?php
 // Hot Sale — expone número, valor y moneda del pedido para el Pixel 2.
 add_action( 'woocommerce_thankyou', function ( $order_id ) {
 	$order = wc_get_order( $order_id );

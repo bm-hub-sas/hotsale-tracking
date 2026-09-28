@@ -7,7 +7,8 @@
 //      a stored touch older than CONFIG.maxTouchAgeDays.
 //   2. Classifies the visit (lib/classify.js). Not a Hot Sale touch -> stop.
 //   3. Stores the touch under "hotsale_touch_v2" in sessionStorage and
-//      localStorage, and reports it once per session with event "touch".
+//      localStorage and reports it with event "touch", unless it repeats the
+//      stored touch within 30 minutes (lib/touch.js, isRepeat).
 // No listeners, no timers, no DOM changes, no cookies.
 (function () {
   'use strict';
@@ -40,9 +41,13 @@
 
     var touch = buildTouch(hit, now, location.hostname);
 
-    // Same touch already recorded in this session (e.g. a reload of the
-    // landing page): keep the original landed_at and do not report again.
-    if (sameTouch(parseTouch(storageGet('sessionStorage', TOUCH_KEY)), touch)) return;
+    // Same touch recorded less than 30 minutes ago (a reload, or the same link
+    // in another tab): keep the original landed_at and do not report again.
+    var stored = latestTouch(
+      parseTouch(storageGet('sessionStorage', TOUCH_KEY)),
+      parseTouch(storageGet('localStorage', TOUCH_KEY))
+    );
+    if (isRepeat(stored, touch, now)) return;
 
     // A new Hot Sale touch replaces the previous one. Visits that are not
     // Hot Sale touches never reach this point, so they never clear it.

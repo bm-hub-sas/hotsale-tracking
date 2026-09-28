@@ -51,7 +51,7 @@ const FORBIDDEN = [
   'document.cookie', 'browser.cookie',
   'createElement', 'appendChild', 'insertBefore', 'innerHTML', 'outerHTML', 'document.write',
   'eval(', 'new Function', 'setTimeout', 'setInterval', 'addEventListener', 'XMLHttpRequest',
-  'dataLayer.push',
+  'dataLayer.push', 'module.exports', 'require(', '@strip', '@inline', '@config',
 ];
 // The pixel reads no personal data; these names must not appear at all.
 const FORBIDDEN_PERSONAL = /email|phone|address|firstName|lastName|lineItems|billing|shipping/i;
@@ -83,15 +83,29 @@ function configBlock(config, keyword, indent) {
   return [`${indent}${keyword} CONFIG = {`, ...lines, `${indent}};`].join('\n');
 }
 
-function libSource(relPath, indent) {
-  const text = fs.readFileSync(path.join(SRC, relPath), 'utf8');
-  const stripped = text.replace(/^\/\/ @strip-start\n[\s\S]*?^\/\/ @strip-end\n?/gm, '').replace(/\s+$/, '');
+// Sources are read with LF line endings whatever the checkout does, so the
+// strip markers and the output (and its SHA-256) are the same on every OS.
+function readSource(relPath) {
+  return toLF(fs.readFileSync(path.join(SRC, relPath), 'utf8'));
+}
+
+function toLF(text) {
+  return text.replace(/\r\n?/g, '\n');
+}
+
+// Lib text -> the code inlined into a snippet: strip blocks removed, indented.
+function prepareLib(text, indent) {
+  const stripped = toLF(text).replace(/^\/\/ @strip-start\n[\s\S]*?^\/\/ @strip-end\n?/gm, '').replace(/\s+$/, '');
   return stripped.split('\n').map((l) => (l ? indent + l : l)).join('\n');
+}
+
+function libSource(relPath, indent) {
+  return prepareLib(readSource(relPath), indent);
 }
 
 // Returns the JavaScript of a target, with libs and config inlined.
 function renderJs(target, config) {
-  const src = fs.readFileSync(path.join(SRC, target.src), 'utf8');
+  const src = readSource(target.src);
   return src
     .replace(/^([ \t]*)\/\* @config \*\/[ \t]*$/m, (_, indent) => configBlock(config, target.es5 ? 'var' : 'const', indent))
     .replace(/^([ \t]*)\/\* @inline (lib\/[\w-]+\.js) \*\/[ \t]*$/gm, (_, indent, rel) => libSource(rel, indent));
@@ -182,7 +196,7 @@ function build({ check = false, config = CONFIG, outDir = DIST } = {}) {
   return outputs;
 }
 
-module.exports = { CONFIG, TARGETS, FORBIDDEN, render, checkSnippet, build, sha256, SITE_KEY_PLACEHOLDER };
+module.exports = { CONFIG, TARGETS, FORBIDDEN, render, checkSnippet, build, sha256, prepareLib, SITE_KEY_PLACEHOLDER };
 
 if (require.main === module) {
   const check = process.argv.includes('--check');

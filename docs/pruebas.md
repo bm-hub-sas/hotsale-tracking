@@ -17,6 +17,8 @@ Con esta prueba se confirma que el píxel registra la llegada desde Hot Sale y l
    - `"signal": "utm_only"`
    - `"is_test": true`
    - `"site_key"`: el suyo, no `REEMPLAZAR_SITE_KEY`
+
+   Si la petición aparece bloqueada, revise su Content-Security-Policy: `https://px.hotsale.com.co` debe estar en `connect-src`.
 5. En **Aplicación → Almacenamiento local** (Application → Local storage), dentro de su dominio, debe estar la clave `hotsale_touch_v2`.
 6. Recargue la página. No debe aparecer una segunda petición.
 
@@ -25,7 +27,7 @@ Con esta prueba se confirma que el píxel registra la llegada desde Hot Sale y l
 1. En la misma ventana, haga una compra de prueba. Puede usar el modo de prueba de su pasarela o un pedido que luego cancele.
 2. En la página de confirmación debe aparecer **una** petición a `px.hotsale.com.co/v1/collect` con:
    - `"event": "purchase"`
-   - `"order_id"`: el número de su pedido
+   - `"order_id"`: el identificador de su pedido. En Shopify es el ID interno que aparece en la URL del pedido en el administrador, no el número `#1001`
    - `"order_value"`: el valor, como número
    - `"currency"`: la moneda del pedido, p. ej. `"COP"`
    - `"order_status": "complete"`
@@ -33,7 +35,7 @@ Con esta prueba se confirma que el píxel registra la llegada desde Hot Sale y l
 3. La clave `hotsale_touch_v2` ya no debe estar en el almacenamiento local.
 4. Recargue la página de confirmación. No debe aparecer otra petición.
 
-**Si `order_status` es `"incomplete"`**, su página de confirmación no expone el pedido en un formato que el píxel reconozca. Revise `order_id`, `order_value` y `currency` para ver qué falta, y siga la sección "Si el pedido llega incompleto" de la guía de su plataforma. Por lo general se resuelve con `window.hotsaleOrder` ([GTM / sin GTM](instalacion-gtm.md#si-el-pedido-llega-incompleto)).
+**Si `order_status` es `"incomplete"`**, su página de confirmación no expone el pedido en un formato que el píxel reconozca. Revise `order_id`, `order_value` y `currency` para ver qué falta. Si `order_value` es 0 y `order_value_raw` trae un texto como `"250.000"`, el valor es ambiguo (¿250 o 250000?) y debe exponerse como número. En GTM o sin GTM, siga [Si el pedido llega incompleto](instalacion-gtm.md#si-el-pedido-llega-incompleto); en WooCommerce, [Datos del pedido](instalacion-woocommerce.md#datos-del-pedido); en Shopify o VTEX, escríbanos.
 
 ## 3. Que no haga nada más
 

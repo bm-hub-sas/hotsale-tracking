@@ -53,7 +53,9 @@ Si en la [prueba](pruebas.md) el envío llega con `order_status: "incomplete"`, 
 
 ### Consentimiento
 
-Si usa la configuración de consentimiento de GTM, puede exigir `analytics_storage` en ambas etiquetas, porque el píxel usa `localStorage` para la medición. Así, los visitantes que rechacen la analítica no se miden.
+Si su política exige consentimiento de analítica, tenga en cuenta el momento en que se da. El Pixel 1 solo reconoce la llegada desde Hot Sale **en la página de llegada**, porque es donde están los UTM y el referrer. Si exige `analytics_storage` y el visitante acepta el banner después de que carga la página, el activador *All Pages* ya pasó y esa llegada se pierde.
+
+Para no perderla, agregue al Pixel 1 un segundo activador con el evento que envía su plataforma de consentimiento al aceptar. El píxel no reenvía un toque que ya registró, así que un doble disparo no duplica nada. Los visitantes que rechazan la analítica no se miden.
 
 ## Sin GTM
 
@@ -61,6 +63,10 @@ Si usa la configuración de consentimiento de GTM, puede exigir `analytics_stora
 2. **Pixel 2:** pegue `pixel2-gtm-confirmacion.html` **solo** en la página de confirmación de compra, antes de `</body>` y después del código que define el pedido (`dataLayer` o `window.hotsaleOrder`).
 
 Ambos archivos ya incluyen las etiquetas `<script>`. Si su plataforma no tiene `dataLayer` en la página de confirmación, defina `window.hotsaleOrder` como en [Si el pedido llega incompleto](#si-el-pedido-llega-incompleto).
+
+## Content-Security-Policy
+
+Si su sitio usa CSP, agregue `https://px.hotsale.com.co` a `connect-src`. Las etiquetas de HTML personalizado de GTM también necesitan que su CSP permita los scripts de GTM, normalmente con un *nonce*.
 
 ## Verificar
 

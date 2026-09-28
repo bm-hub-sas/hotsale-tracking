@@ -149,3 +149,49 @@ test('only id, value and currency are read from an order', () => {
   }]);
   assert.deepEqual(Object.keys(o).sort(), ['currency', 'order_id', 'order_status', 'order_value', 'order_value_raw', 'value_source']);
 });
+
+test('an entry with an empty ecommerce object still yields its other formats', () => {
+  const ee = extractOrder([{ event: 'purchase', ecommerce: { currencyCode: 'COP', purchase: { actionField: { id: 'EE-3', revenue: '150000' } } } }]);
+  assert.equal(ee.order_id, 'EE-3');
+  assert.equal(ee.value_source, 'ecommerce.purchase.revenue');
+  const top = extractOrder([{ event: 'purchase', transaction_id: 'P-1', value: 5000, currency: 'COP', ecommerce: { items: [{ item_id: 'x' }] } }]);
+  assert.equal(top.order_id, 'P-1');
+  assert.equal(top.order_status, 'complete');
+  assert.equal(top.value_source, 'purchase.value');
+});
+
+test('a later entry repeating the id without the value does not hide the value', () => {
+  const o = extractOrder([
+    { event: 'purchase', ecommerce: { transaction_id: 'T1', value: 100, currency: 'COP' } },
+    { event: 'affiliate_conversion', transactionId: 'T1' },
+  ]);
+  assert.equal(o.order_id, 'T1');
+  assert.equal(o.order_value, 100);
+  assert.equal(o.order_status, 'complete');
+});
+
+test('an older complete order never replaces the most recent order id', () => {
+  const o = extractOrder([
+    { event: 'purchase', ecommerce: { transaction_id: 'OLD', value: 100, currency: 'COP' } },
+    { event: 'orderPlaced', transactionId: 'NEW' },
+  ]);
+  assert.equal(o.order_id, 'NEW');
+  assert.equal(o.order_status, 'incomplete');
+});
+
+test('refund entries are never read', () => {
+  const o = extractOrder([
+    { event: 'purchase', ecommerce: { transaction_id: 'T2', value: 100, currency: 'COP' } },
+    { event: 'refund', ecommerce: { transaction_id: 'T2', value: 100, currency: 'COP' } },
+    { event: 'refund', ecommerce: { transaction_id: 'R-9' } },
+  ]);
+  assert.equal(o.order_id, 'T2');
+  assert.equal(o.order_status, 'complete');
+});
+
+test('an empty window.hotsaleOrder does not override the dataLayer', () => {
+  const dl = [{ event: 'purchase', ecommerce: { transaction_id: 'DL', value: 1, currency: 'COP' } }];
+  for (const override of [{}, [], { currency: 'COP' }, { id: '', value: '' }]) {
+    assert.equal(extractOrder(dl, override).order_id, 'DL', JSON.stringify(override));
+  }
+});

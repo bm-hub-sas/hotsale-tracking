@@ -73,7 +73,7 @@ function classify(url, referrer, cfg) {
   var params = readParams(url, UTM_KEYS.concat(['hs_test']));
   var utms = {};
   for (var i = 0; i < UTM_KEYS.length; i++) {
-    utms[UTM_KEYS[i]] = clip(String(params[UTM_KEYS[i]] || '').replace(/^\s+|\s+$/g, ''), MAX_FIELD_LENGTH);
+    utms[UTM_KEYS[i]] = clip(String(params[UTM_KEYS[i]] || '').replace(/^\s+/, ''), MAX_FIELD_LENGTH).replace(/\s+$/, '');
   }
   var byReferrer = inList(hostOf(referrer), cfg.referrerDomains);
   var bySource = inList(utms.utm_source.toLowerCase(), cfg.hsSources);

@@ -121,18 +121,38 @@ test('checkout_completed twice (same page, concurrently) sends one purchase', as
   assert.deepEqual(p.sent.map((s) => [s.body.event, s.body.order_status || null]), [['touch', null], ['purchase', 'incomplete']]);
 });
 
-test('an incomplete order keeps the touch and is not re-sent on the next page', async () => {
+test('an incomplete order WITH an id uses up the touch: one touch, one order', async () => {
   const shared = { local: new Map(), session: new Map(), sent: [] };
   await loadPixel(shared).handlers.page_viewed(pageViewed('?utm_source=hotsale', ''));
-  await loadPixel(shared).handlers.checkout_completed(checkoutCompleted({ totalPrice: null }));
-  await loadPixel(shared).handlers.checkout_completed(checkoutCompleted({ totalPrice: null }));
-  const purchases = shared.sent.filter((s) => s.body.event === 'purchase');
+  await loadPixel(shared).handlers.checkout_completed(checkoutCompleted({ id: '1001', totalPrice: null }));
+  // Later orders in new tabs, still without a price: nothing more is claimed.
+  await loadPixel({ ...shared, session: new Map(), now: T0 + 10 * DAY }).handlers.checkout_completed(checkoutCompleted({ id: '1002', totalPrice: null }));
+  const purchases = shared.sent.filter((x) => x.body.event === 'purchase').map((x) => x.body);
   assert.equal(purchases.length, 1);
-  assert.equal(purchases[0].body.order_status, 'incomplete');
-  assert.equal(purchases[0].body.order_value, 0);
-  assert.equal(purchases[0].body.value_source, 'none');
-  assert.equal(purchases[0].body.currency, 'COP', 'falls back to checkout.currencyCode');
+  assert.equal(purchases[0].order_id, '1001');
+  assert.equal(purchases[0].order_status, 'incomplete');
+  assert.equal(purchases[0].value_source, 'none');
+  assert.equal(purchases[0].currency, 'COP', 'falls back to checkout.currencyCode');
+  assert.equal(shared.local.has('hotsale_touch_v2'), false);
+});
+
+test('an order WITHOUT an id keeps the touch and is not re-sent on the next page', async () => {
+  const shared = { local: new Map(), session: new Map(), sent: [] };
+  await loadPixel(shared).handlers.page_viewed(pageViewed('?utm_source=hotsale', ''));
+  await loadPixel(shared).handlers.checkout_completed(checkoutCompleted({ id: null, totalPrice: null }));
+  await loadPixel(shared).handlers.checkout_completed(checkoutCompleted({ id: null, totalPrice: null }));
+  const purchases = shared.sent.filter((x) => x.body.event === 'purchase');
+  assert.equal(purchases.length, 1);
+  assert.equal(purchases[0].body.order_id, '');
   assert.ok(shared.local.has('hotsale_touch_v2'));
+});
+
+test('the same link again after 30 minutes is a new touch with a new landed_at', async () => {
+  const shared = { local: new Map(), session: new Map(), sent: [] };
+  await loadPixel(shared).handlers.page_viewed(pageViewed('?utm_source=hotsale', ''));
+  await loadPixel({ ...shared, now: T0 + 29 * 60000 }).handlers.page_viewed(pageViewed('?utm_source=hotsale', ''));
+  await loadPixel({ ...shared, now: T0 + 19 * DAY }).handlers.page_viewed(pageViewed('?utm_source=hotsale', ''));
+  assert.deepEqual(shared.sent.map((x) => x.body.landed_at), [new Date(T0).toISOString(), new Date(T0 + 19 * DAY).toISOString()]);
 });
 
 test('the same touch seen again in the session is not re-sent; non-Hot Sale pages keep it', async () => {

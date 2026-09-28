@@ -2,7 +2,7 @@
 
 ## Cómo reportar una vulnerabilidad
 
-Escriba a `[correo de seguridad — DEFINIR]` o use **Security → Report a vulnerability** en este repositorio de GitHub. **No abra un issue público.**
+Escriba a `[correo de seguridad — DEFINIR]`. También puede usar **Security → Report a vulnerability** en este repositorio de GitHub, si está habilitado. **No abra un issue público.**
 
 Incluya:
 
@@ -21,7 +21,7 @@ Si la corrección cambia el código que los aliados tienen instalado, se publica
 ## Alcance
 
 - El código de este repositorio: `src/`, `scripts/` y `dist/` (lo que se instala en las tiendas).
-- El collector `px.hotsale.com.co`, operado por BM-Hub, que no está en este repositorio. Los reportes sobre el collector se reciben en el mismo contacto.
+- El collector `px.hotsale.com.co`, operado por UpSell/BM-Hub, que no está en este repositorio. Los reportes sobre el collector se reciben en el mismo contacto.
 
 ## Versiones con soporte
 

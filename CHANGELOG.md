@@ -17,13 +17,14 @@ Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la vers
 
 - **Se cuentan las visitas que llegan desde hotsale.com.co sin UTM.** En la versión 1 la captura las registraba, pero la conversión las descartaba si no traían UTM.
 - **Shopify lee el almacenamiento con la API documentada** (`browser.localStorage` y `browser.sessionStorage`). Además, un solo píxel personalizado hace la captura y la conversión, y ya no hace falta código en `theme.liquid`.
-- **Se envía la moneda del pedido.** La versión 1 la calculaba pero no la enviaba, así que los pedidos en USD se leían como COP. Si la moneda falta, el campo va vacío: el píxel ya no asume COP.
+- **Se envía la moneda del pedido.** La versión 1 la enviaba a GA4 y a Meta, pero no a la hoja de Google, que era la fuente de los reportes. Por eso los pedidos en USD se leían como COP. Si la moneda falta, el campo va vacío: el píxel ya no asume COP.
 - **Los pedidos sin número o sin valor se marcan `incomplete`**, en lugar de enviarse como `order_id: 'unknown'` y `order_value: 0`.
-- **Los toques caducan.** Cada toque guarda `landed_at`. El píxel no reporta compras con un toque de más de 30 días y borra esos toques. En la versión 1, cualquier compra posterior se atribuía a Hot Sale sin límite de tiempo.
+- **Los toques caducan.** Cada toque guarda `landed_at`. El píxel no reporta compras con un toque de más de 30 días y borra esos toques. En la versión 1 los datos no caducaban: la siguiente compra en ese navegador se atribuía a Hot Sale aunque ocurriera meses después.
+- **Un toque, un pedido.** Después de reportar un pedido con número, el toque se borra. El mismo enlace repetido antes de 30 minutos (recarga o dos pestañas) cuenta como una sola llegada.
 - **La regla de atribución es exacta:** el referrer es un dominio de Hot Sale o `utm_source` es exactamente `hotsale`. Se eliminó la búsqueda de 26 palabras clave dentro de cualquier UTM (`ccce`, `epsilon`, errores de escritura, etc.), que atribuía a Hot Sale los boletines y campañas propios del aliado.
 - **Se toma el pedido más reciente del `dataLayer`**, no el primero. Además, se reconocen más formatos (GA4, gtag.js, Universal Analytics estándar y enhanced ecommerce, VTEX), y se puede usar `window.hotsaleOrder` si la plataforma no tiene `dataLayer`.
 - Los valores como `"250.000"`, que pueden ser 250 o 250000, ya no se interpretan a ciegas. Se marcan `incomplete` y se envía el texto original para que lo resuelva el collector.
-- Cada envío incluye `signal`, `value_source`, `pixel_version` e `is_test`. `hs_test=1` permite probar la instalación sin afectar los reportes.
+- Cada envío incluye `signal`, `pixel_version` e `is_test`. Las compras incluyen además `order_status` y `value_source`. `hs_test=1` permite probar la instalación sin afectar los reportes.
 
 ### Documentación
 
@@ -32,7 +33,7 @@ Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la vers
 
 ### Seguridad
 
-- Los snippets ya no apuntan al endpoint de Google Apps Script, que aceptaba envíos sin autenticación para cualquier tienda. El collector nuevo valida un `site_key` por aliado contra el `Origin` y el dominio registrado.
+- Los snippets ya no apuntan al endpoint de Google Apps Script, que aceptaba envíos sin autenticación para cualquier tienda. El collector nuevo (MarOS) validará un `site_key` por aliado contra el `Origin` y el dominio registrado.
 - Los snippets están versionados y se publican con SHA-256 (`dist/SHA256SUMS.txt`).
 - Se agregó [SECURITY.md](SECURITY.md).
 
