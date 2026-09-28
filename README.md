@@ -1,108 +1,188 @@
-# Hotsale Tracking Pixel — hotsale.com.co
+# Píxel de Hot Sale para aliados
 
-Sistema de tracking de conversiones cross-domain para el evento Hotsale Colombia.
-Captura compras realizadas en sitios de aliados atribuidas a tráfico de Hotsale.
-### Ver videos tutoriales de instalación: https://foxly.link/tutoriales_pixels_hotsale
+Este repositorio contiene el píxel que mide las ventas que las tiendas aliadas reciben desde [hotsale.com.co](https://hotsale.com.co), el evento de la Cámara Colombiana de Comercio Electrónico (CCCE). El píxel tiene dos partes. La **captura** reconoce en su tienda una visita que llega desde Hot Sale y la guarda en el navegador del visitante. La **conversión** reporta el número, el valor y la moneda del pedido en la página de confirmación de compra. Cada parte hace una sola petición a un único servidor. Usted pega el código de [`dist/`](dist/), que se genera a partir de [`src/`](src/) y se puede verificar con SHA-256.
 
-## ¿Cómo funciona?
+**Versión actual: 2.0.0** (Hot Sale, 19 al 23 de octubre de 2026). La versión de marzo de 2026 quedó en la etiqueta [`v1.0.0-marzo2026`](https://github.com/bm-hub-sas/hotsale-tracking/tree/v1.0.0-marzo2026). Los cambios entre versiones están en [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## 1. Qué datos se envían
+
+**No se envía ningún dato personal del comprador.** El píxel no lee nombre, correo, teléfono, dirección, documento ni el contenido del carrito. De la página de confirmación solo lee el número, el valor y la moneda del pedido.
+
+El píxel hace dos tipos de envío:
+
+- `touch`: un visitante llegó desde Hot Sale. Cada toque se envía una sola vez por sesión: si el visitante recarga la página, no se repite.
+- `purchase`: ese visitante completó una compra.
+
+| Campo | Ejemplo | Qué es | En `touch` | En `purchase` |
+|---|---|---|:-:|:-:|
+| `v` | `2` | Versión del formato del envío | ✓ | ✓ |
+| `pixel_version` | `"2.0.0"` | Versión del píxel instalado | ✓ | ✓ |
+| `site_key` | `"hs_pk_xxxxxxxx"` | Identificador de su tienda, emitido por Hot Sale. Es público, no es una contraseña | ✓ | ✓ |
+| `event` | `"purchase"` | `touch` o `purchase` | ✓ | ✓ |
+| `store_domain` | `"tienda.com"` | Dominio de la página donde corre el píxel | ✓ | ✓ |
+| `order_id` | `"12345"` | Número del pedido. Va vacío si su página no lo expone | | ✓ |
+| `order_value` | `250000` | Valor del pedido. Es `0` si falta o si es ambiguo (ver [reglas](docs/contrato-collector.md#valor-del-pedido)) | | ✓ |
+| `order_value_raw` | `"250000"` | El valor tal como lo expone su página, sin interpretar | | ✓ |
+| `currency` | `"COP"` | Código ISO de la moneda del pedido. Va vacío si su página no la expone | | ✓ |
+| `order_status` | `"complete"` | `complete` si hay número de pedido y valor mayor que 0; si no, `incomplete` | | ✓ |
+| `value_source` | `"ecommerce.value"` | De dónde se leyó el valor | | ✓ |
+| `signal` | `"referrer+utm"` | Por qué la visita cuenta como de Hot Sale (ver §3) | ✓ | ✓ |
+| `landed_at` | `"2026-10-19T14:03:22.000Z"` | Hora de llegada desde Hot Sale, según el reloj del navegador, en UTC | ✓ | ✓ |
+| `sent_at` | `"2026-10-19T14:21:05.000Z"` | Hora del envío | ✓ | ✓ |
+| `is_test` | `false` | `true` si la URL tenía `hs_test=1` (ver [pruebas](docs/pruebas.md)) | ✓ | ✓ |
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `utm_id` | `"hotsale"` | Parámetros UTM de la URL de llegada, de hasta 200 caracteres cada uno | ✓ | ✓ |
+
+Este es un envío `purchase` completo:
+
+```json
+{
+  "v": 2, "pixel_version": "2.0.0", "site_key": "hs_pk_xxxxxxxx", "event": "purchase",
+  "store_domain": "tienda.com", "order_id": "12345", "order_value": 250000, "order_value_raw": "250000",
+  "currency": "COP", "order_status": "complete", "value_source": "ecommerce.value",
+  "signal": "referrer+utm", "landed_at": "2026-10-19T14:03:22.000Z", "sent_at": "2026-10-19T14:21:05.000Z",
+  "is_test": false, "utm_source": "hotsale", "utm_medium": "referral", "utm_campaign": "hs26oct",
+  "utm_content": "", "utm_term": "", "utm_id": ""
+}
 ```
-Campaña Hotsale → Usuario llega al aliado con UTM
-                          ↓
-             Tag 1 detecta UTM y guarda en localStorage
-                          ↓
-              Usuario compra → Thank you page
-                          ↓
-         Tag 2 lee localStorage → dispara a 3 destinos:
-              Google Sheet · GA4 · Meta Pixel
-```
 
-## Destinos de datos
+### Qué se guarda en el navegador del visitante
 
-| Destino | Propósito | Confiabilidad |
+El píxel no usa cookies. Solo usa estas claves:
+
+| Clave | Dónde | Contenido | Cuándo se borra |
+|---|---|---|---|
+| `hotsale_touch_v2` | `localStorage` y `sessionStorage` | `v`, `landed_at`, `signal`, `store_domain`, `is_test` y los UTM | Después de reportar una compra completa. También en la siguiente visita a su tienda si tiene más de 30 días. La copia en `sessionStorage` se borra al cerrar la pestaña |
+| `hotsale_sent_<número de pedido>` | `sessionStorage` | `complete` o `incomplete`. Evita enviar dos veces el mismo pedido | Al cerrar la pestaña |
+
+El píxel también borra la clave `hotsale_data` que dejaba la versión de marzo de 2026.
+
+## 2. A dónde van
+
+- **Destino único:** `https://px.hotsale.com.co/v1/collect` `[DEFINIR: el dominio requiere un registro DNS de la CCCE]`. Es el único dominio al que el píxel se conecta.
+- **Quién lo opera:** BM-Hub, por encargo de la CCCE. Los datos se guardan en BigQuery (plataforma MarOS).
+- **Retención:** `[DEFINIR con la CCCE]`.
+- **Quién puede verlos:** usted (los datos de su tienda), la CCCE y UpSell/BM-Hub como operador.
+- **IP y navegador:** como en cualquier petición web, el servidor recibe la dirección IP y el user-agent en la conexión. El píxel no los lee ni los incluye en el envío. `[DEFINIR con MarOS: si el collector los guarda y por cuánto tiempo]`.
+- **Formato:** la petición es un `POST` con cuerpo `text/plain` (JSON). No dispara preflight CORS. El contrato completo está en [docs/contrato-collector.md](docs/contrato-collector.md).
+
+## 3. Regla de atribución
+
+Una visita a su tienda cuenta como **toque de Hot Sale** si se cumple al menos una de estas condiciones:
+
+- **A — referrer:** la página anterior (`document.referrer`) es exactamente uno de estos dominios: `hotsale.com.co`, `www.hotsale.com.co`, `hotsale.co` o `www.hotsale.co`.
+- **B — enlace de Hot Sale:** el parámetro `utm_source` de la URL es exactamente `hotsale`. No distingue mayúsculas y no tiene en cuenta los espacios al inicio o al final.
+
+No hay coincidencias parciales ni listas de palabras clave. Por ejemplo, `utm_source=hotsale2026`, `utm_campaign=hotsale_newsletter` o un subdominio como `blog.hotsale.com.co` **no** cuentan. Los demás UTM se guardan tal como llegan, pero no deciden nada.
+
+El campo `signal` indica qué condición se cumplió: `referrer+utm` (A y B), `referrer_only` (solo A) o `utm_only` (solo B).
+
+**Modelo: último toque de Hot Sale.**
+
+- Un toque nuevo de Hot Sale reemplaza al anterior.
+- Una visita que no es de Hot Sale (Google, sus propias campañas, tráfico directo) **no** borra el toque.
+- Cada toque se asocia a una sola compra. Después de reportar una compra completa, el toque se borra.
+- El píxel no reporta compras cuyo toque tenga más de 30 días.
+- **Ventana del evento:** el collector cuenta las compras hasta `[N días después del cierre del evento — DEFINIR con la CCCE]`. El evento va del 19 al 23 de octubre de 2026, con extensión el 24 y 25 de octubre.
+- Los envíos con `is_test: true` no cuentan en los reportes.
+
+> **Para su equipo de marketing:** no use `utm_source=hotsale` en sus propias campañas, porque esas visitas contarían como de Hot Sale.
+
+**Lo que este modelo no reclama:**
+
+- Compras hechas en otro dispositivo o navegador, porque el toque se guarda en el navegador.
+- Visitas sin referrer de Hot Sale y sin `utm_source=hotsale`. Por ejemplo, alguien que vio Hot Sale y luego escribió su URL o lo buscó en Google.
+- Compras hechas después de la ventana del evento.
+- Compras en navegadores que bloquean o borran el almacenamiento, como el modo privado o Safari cuando borra el almacenamiento de un sitio tras 7 días sin visitas.
+
+## 4. Qué NO hace el píxel
+
+- No lee ni escribe cookies.
+- No carga scripts de terceros: ni Google Analytics, ni Meta, ni ningún otro. El único código que corre es el que usted pega.
+- No envía eventos a su GA4 ni a su píxel de Meta, no llama a sus funciones `gtag` o `fbq` y no agrega nada a su `dataLayer`.
+- No modifica la página: no crea elementos ni inserta HTML.
+- En GTM/HTML no crea variables globales, no registra listeners y no usa temporizadores. En Shopify solo usa la API de píxeles de Shopify (`analytics.subscribe`, `browser.localStorage`, `browser.sessionStorage`, `browser.sendBeacon`).
+- No lee datos del comprador ni del carrito.
+- Hace una sola petición por envío, siempre a la misma URL.
+
+Estas afirmaciones se comprueban de forma automática. La compilación ([`scripts/build.js`](scripts/build.js)) falla si un snippet contiene `fbq(`, `gtag(`, `googletagmanager`, `connect.facebook.net`, `script.google.com`, `document.cookie`, `createElement`, `dataLayer.push`, temporizadores, listeners, cualquier URL distinta del collector o nombres de datos personales. Las pruebas e2e ([`test/e2e/`](test/e2e/)) abren los snippets en Chromium, sobre una página con un píxel de Meta y un `gtag` falsos del aliado. Verifican que esas funciones no reciben ninguna llamada, que no aparecen variables globales nuevas, que el `dataLayer` no cambia y que no hay peticiones de red distintas a la del collector.
+
+## 5. Instalación
+
+Hot Sale le envía los archivos con su `site_key` ya incluido. Si tiene instalada la versión de marzo de 2026 (etiquetas "Hotsale UTM Capture" y "Hotsale Conversion Pixel", o código en `theme.liquid`), **elimínela antes** de instalar esta.
+
+| Plataforma | Qué se instala | Guía |
 |---|---|---|
-| Google Sheet (Apps Script) | Fuente de verdad | ~85% |
-| GA4 | Análisis en tiempo real | ~75% |
-| Meta Pixel | Optimización de campañas | ~60% |
+| Shopify | Un solo píxel personalizado en *Eventos de clientes*. Nada en `theme.liquid` | [docs/instalacion-shopify.md](docs/instalacion-shopify.md) |
+| Google Tag Manager (cualquier plataforma) | Pixel 1 en todas las páginas y Pixel 2 en la página de confirmación | [docs/instalacion-gtm.md](docs/instalacion-gtm.md) |
+| VTEX | Por medio de GTM | [docs/instalacion-vtex.md](docs/instalacion-vtex.md) |
+| WooCommerce | Por medio de GTM o de `functions.php` | [docs/instalacion-woocommerce.md](docs/instalacion-woocommerce.md) |
+| Otra plataforma, sin GTM | Pixel 1 en la plantilla principal y Pixel 2 en la página de confirmación | [docs/instalacion-gtm.md#sin-gtm](docs/instalacion-gtm.md#sin-gtm) |
 
-## Instalación por plataforma
+## 6. Cómo verificar la instalación
 
-| Plataforma | Place | Pixel |
-|---|---|---|
-| Shopify | theme.liquid | [ver](Pixels/Pixel%201-All%20pages.html) | 
-| Shopify | Customer Events | [ver](Pixels/Pixel%202%20Shopify-Customer%20events.js) |
-| VTEX / Otros / GTM | All Pages | [ver](Pixels/Pixel%201-All%20pages.html) |
-| VTEX / Otros / GTM | Confirmation page | [ver](Pixels/Pixel%202%20GTM%20-Confirm%20page.html) |
-Ver videos tutoriales de instalación: https://foxly.link/tutoriales_pixels_hotsale
+Visite su tienda con `?utm_source=hotsale&hs_test=1`, haga una compra de prueba y revise en las herramientas de desarrollo del navegador las dos peticiones a `px.hotsale.com.co`. Los envíos de prueba no cuentan en los reportes. El paso a paso está en [docs/pruebas.md](docs/pruebas.md).
 
-### Keywords de detección activas
-```javascript
-var hotsaleKeywords = [
-    'hotsale', 'hot_sale', 'hot-sale', 'hot.sale', 'hotsale2026', 'hotsale_2026', 'hotsale-2026', 'hs2026', 'hs_2026', 'hs-2026', 'hotsale_mar', 'hotsale_marzo', 'hotsalemarzo', 'hotsale_oct', 'hotsale_octubre', 'hotsaleoct', 'hotsaleco', 'hotsale_co', 'hotsalecolombia', 'ccce', 'ccceco', 'ccce2026', 'hotsael', 'hotslae', 'hotsalee', 'epsilon'
-  ];
-```
-### Keywords de exclusión de tráfico
- ```javascript
-  var foreignKeywords = [
-    'newsletter', 'crm', 'email', 'sms', 'push', 'push_notification', 'whatsapp', 'telegram', 'facebook', 'instagram', 'cpc', 'paid', 'always_on', 'brand_always_on', 'pago', 'pauta', 'tiktok', 'pinterest', 'fb', 'ig', 'social', 'ppc'
-  ];
-```
-### Keywords de detección de referral hotsale
-```javascript
-  var referrerDomains = [
-    'hotsale.com.co', 'www.hotsale.com.co',
-    'hotsale.co',     'www.hotsale.co'
-  ];
+## 7. Cómo desinstalar
+
+- **GTM:** pause o elimine las dos etiquetas y publique el contenedor.
+- **Shopify:** en *Configuración → Eventos de clientes*, desconecte o elimine el píxel "Hot Sale".
+- **Otras plataformas:** quite los dos bloques de código.
+
+Las claves que queden en los navegadores de sus visitantes (§1) ya no se leen ni se envían a ninguna parte.
+
+## 8. Versiones y verificación
+
+- Cada snippet indica su versión en la primera línea y en `CONFIG.pixelVersion`. Cada envío incluye `pixel_version`.
+- El código vive en su sitio: no se descarga de ningún servidor, así que no cambia a menos que usted pegue una versión nueva.
+- [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt) tiene el SHA-256 de cada plantilla (con `REEMPLAZAR_SITE_KEY` en lugar de su `site_key`).
+
+Para verificar las plantillas en una copia del repositorio:
+
+```sh
+cd dist && shasum -a 256 -c SHA256SUMS.txt        # macOS / Linux
 ```
 
+```powershell
+Get-FileHash .\dist\pixel2-gtm-confirmacion.html -Algorithm SHA256   # Windows
+```
 
-# Modelo de Atribución — Hotsale Tracking Pixel:
-ATTRIBUTION MODEL — Hotsale Tracking 2026
+Para verificar el archivo que recibió, que ya trae su `site_key`, compárelo con la plantilla. La única diferencia debe ser la línea `SITE_KEY`:
 
-MODELO: Last Non-Direct Click  |  CRÉDITO: 100% Hotsale  |  SPLIT: Ninguno
+```sh
+diff su-archivo.html dist/pixel2-gtm-confirmacion.html
+# o bien: vuelva a poner el marcador y calcule el hash
+sed "s/'hs_pk_[A-Za-z0-9_]*'/'REEMPLAZAR_SITE_KEY'/" su-archivo.html | shasum -a 256
+```
 
+## 9. Contacto
 
-VENTANA DE ATRIBUCIÓN
-──────────────────────
-Basada en sesión (localStorage)
+- Implementación y dudas: `[correo compartido del proyecto — DEFINIR]`
+- Vulnerabilidades: ver [SECURITY.md](SECURITY.md)
 
-  Usuario llega de Hotsale  →  compra  →  Hotsale lo lleva
-  Usuario cierra y vuelve   →  compra  →  Hotsale NO lo lleva
+---
 
+## Desarrollo
 
-COBERTURA POR SEÑAL DE DETECCIÓN
-referrer+utm      ████████████████████  ~50%  (máxima confianza)
-referrer_only     ████████████░░░░░░░░  ~35%  (alta confianza)
-utm+no_foreign    ████░░░░░░░░░░░░░░░░  ~15%  (confianza media)
-sin señal         ░░░░░░░░░░░░░░░░░░░░   ~0%  → cupones únicamente
+```sh
+npm install
+npm test            # pruebas unitarias y verificación de que dist/ está al día
+npm run test:e2e    # Chromium (Playwright) contra un collector simulado
+npm run build       # regenera dist/ y dist/SHA256SUMS.txt
+```
 
+```
+src/pixel1-capture.js      captura (ES5)
+src/pixel2-gtm.js          conversión para GTM/HTML (ES5)
+src/pixel2-shopify.js      píxel personalizado de Shopify (captura y conversión)
+src/lib/                   lógica pura compartida; build.js la incluye en cada snippet
+scripts/build.js           configuración, compilación y verificaciones
+test/                      pruebas unitarias, arnés de Shopify y e2e
+dist/                      lo que se pega en las tiendas (generado, versionado)
+docs/                      guías de instalación, pruebas y contrato del collector
+```
 
-LO QUE ESTE MODELO NO RECLAMA
-✗  Conversiones asistidas   (vio Hotsale, volvió por Google)
-✗  Influencia post-evento   (compró 3 días después)
-✗  Split con campañas del ally
+La configuración (URL del collector, días máximos del toque, valores de `utm_source` y dominios de referrer) está al inicio de [`scripts/build.js`](scripts/build.js). `dist/` se genera siempre con `npm run build`, nunca a mano, y `npm test` falla si no está al día.
 
-LIMITACIONES:
-✅ CAPTURA
-   Usuario llega con UTM Hotsale → compra en la misma sesión
-   Usuario llega → navega varias páginas → compra (misma sesión)
-   Usuario llega por Meta Ad con UTM → compra (mismo dispositivo)
-
-⚠️  CAPTURA PARCIALMENTE
-   Usuario llega → cierra → vuelve días después
-   (localStorage persiste pero sessionStorage no)
-
-❌ NO CAPTURA
-   Cross-device (ve en móvil, compra en desktop)
-   Safari ITP agresivo (borra localStorage en 7 días)
-   Checkout en subdominio sin acceso a localStorage del main domain
-   Plataformas con WAF que bloquean el fetch al Apps Script
-
-
-Jerarquía de Confiabilidad por Destino
-SHEET (Apps Script)     ████████████████████  ~85% de conversiones reales
-GA4                     ███████████████░░░░░  ~75% (bloqueado en algunos enterprise)
-Meta Pixel              ████████████░░░░░░░░  ~60% (ad blockers + CSP + iOS)
-
-## Contacto técnico
-
-Dudas de implementación: sergio@upsellmarketing.co
+Licencia: [MIT](LICENSE).

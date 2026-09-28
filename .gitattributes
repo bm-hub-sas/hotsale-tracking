@@ -1,0 +1,2 @@
+# The published SHA-256 sums are over LF files: never convert line endings.
+dist/* -text
