@@ -10,9 +10,10 @@
 // ── Config ──────────────────────────────────────────────────────────────────
 const CONFIG = {
   PIXEL_VERSION: '2.0.0',
-  // The Google Apps Script web app (collector/apps-script.gs). Replace with the
-  // /exec URL of the NEW deployment; never the March one.
-  COLLECTOR_URL: 'https://script.google.com/macros/s/REEMPLAZAR_ID_DEL_SCRIPT/exec',
+  // The Google Apps Script web app (collector/apps-script.gs), October 2026
+  // deployment. Code updates must reuse this deployment (Manage deployments >
+  // New version) so the URL never changes under the allies' installs.
+  COLLECTOR_URL: 'https://script.google.com/macros/s/AKfycbzeCZ3yX3SDL462PF5tLrPPtU3U3qze3Ptx99QbwUc2lbZAbzK2NjDhrZtdPkbBnj-BGA/exec',
   // Pixel 2 ignores (and deletes) touches older than this. The attribution
   // window itself is applied by the collector using landed_at.
   MAX_TOUCH_AGE_DAYS: 30,
