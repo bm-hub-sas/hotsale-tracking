@@ -1,8 +1,8 @@
 # Prueba de canales: Facebook/Instagram pago, Google pago y Google orgánico
 
-`dist-prueba/` es el mismo píxel de Hot Sale con otras listas. Sirve para medirlo con tráfico real de otras tiendas antes del evento. Registra las visitas que llegan con `utm_source` de Facebook, Instagram o Google, y las que llegan desde la búsqueda de Google. Luego reporta la compra de esa visita.
+`dist-prueba/` es el mismo píxel de Hot Sale con otras listas. Sirve para probar el algoritmo con tráfico real de otras tiendas antes del evento. Usa las mismas tres reglas de producción, cambiando las palabras de Hot Sale por palabras de canal. Así el tráfico de Facebook, Instagram y Google de esas tiendas activa el píxel igual que las campañas de Hot Sale lo harán en producción.
 
-El código es idéntico al de `dist/`: solo cambian la versión (`2.0.0-prueba`), las dos listas y la URL del collector. Una prueba automática lo verifica.
+El código es idéntico al de `dist/`: solo cambian la versión (`2.0.0-prueba`) y las listas. Una prueba automática lo verifica.
 
 **No lo instale en aliados de Hot Sale.**
 
@@ -13,7 +13,7 @@ El código es idéntico al de `dist/`: solo cambian la versión (`2.0.0-prueba`)
 | Facebook / Instagram pago | `utm_source` es `fb`, `ig`, `facebook`, `instagram` o `meta` | En cada anuncio, en *Parámetros de URL*: `utm_source={{site_source_name}}&utm_medium=paid&utm_campaign={{campaign.name}}&utm_content={{ad.name}}` |
 | Google pago | `utm_source` es `google` | En Google Ads, *Configuración de la cuenta → Sufijo de URL final*: `utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}` |
 | Google orgánico | La visita llega desde `google.com`, `google.com.co` o la app de Google en Android, sin UTM | Nada |
-| Palabras clave de Hot Sale | Algún UTM contiene una de las 26 palabras clave de producción (`hotsale`, `ccce`, `epsilon`…), igual que en `dist/` | Nada. Aparece como `signal = keyword_only` y en el reporte cae en "Otro" |
+| Palabras clave de canal | Algún UTM **contiene** `facebook`, `fb`, `instagram`, `meta`, `google`, `adwords`, `cpc`, `ppc`, `paid` o `pmax`. Es la misma regla que en producción busca `hotsale`, `ccce` y las demás | Nada. Aparece como `signal = keyword_only` |
 
 Tres cosas quedan fuera:
 
@@ -41,14 +41,14 @@ En Looker Studio, filtre `pixel_version = 2.0.0-prueba` y cree un campo calculad
 
 ```
 CASE
-  WHEN REGEXP_MATCH(LOWER(utm_source), "fb|ig|facebook|instagram|meta") AND REGEXP_MATCH(LOWER(utm_medium), "paid|cpc|paid_social") THEN "Facebook/Instagram pago"
-  WHEN LOWER(utm_source) = "google" AND REGEXP_MATCH(LOWER(utm_medium), "cpc|ppc|paid") THEN "Google pago"
+  WHEN REGEXP_CONTAINS(LOWER(CONCAT(utm_source, " ", utm_campaign)), "facebook|instagram|meta|fb|ig") AND REGEXP_CONTAINS(LOWER(utm_medium), "paid|cpc|ppc|ads") THEN "Facebook/Instagram pago"
+  WHEN REGEXP_CONTAINS(LOWER(CONCAT(utm_source, " ", utm_campaign)), "google|adwords|pmax") AND REGEXP_CONTAINS(LOWER(utm_medium), "cpc|ppc|paid") THEN "Google pago"
   WHEN signal = "referrer_only" THEN "Google orgánico"
   ELSE "Otro"
 END
 ```
 
-En este perfil, `referrer_only` significa siempre "llegó desde Google sin UTM", porque la lista de referrers solo tiene dominios de Google. "Otro" agrupa, por ejemplo, Facebook orgánico con UTM (`utm_medium=social`).
+En este perfil, `referrer_only` significa siempre "llegó desde Google sin UTM", porque la lista de referrers solo tiene dominios de Google. "Otro" agrupa, por ejemplo, Facebook orgánico con UTM (`utm_medium=social`) o el pago de otras plataformas que coincidió por `cpc` o `paid`.
 
 ## Qué esperar de los números
 

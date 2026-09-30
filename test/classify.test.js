@@ -141,6 +141,10 @@ test('prueba-canales profile: Facebook/Instagram paid, Google paid and Google or
   assert.equal(c('?utm_source=newsletter&utm_medium=email').isHotsale, false);
   assert.equal(c('', 'https://l.facebook.com/').isHotsale, false, 'Facebook without UTMs');
   assert.equal(c('', 'https://www.google.com.evil.com/').isHotsale, false);
-  assert.equal(c('?utm_source=hotsale').signal, 'keyword_only', 'the March keywords apply in the test profile too');
-  assert.equal(c('?utm_campaign=ccce_oct').signal, 'keyword_only');
+  assert.equal(c('?utm_source=hotsale').isHotsale, false, 'Hot Sale words are not part of the test profile');
+  // Channel words inside other UTMs trigger the keyword rule, as Hot Sale words do in production
+  assert.equal(c('?utm_source=newsletter&utm_campaign=facebook_retargeting').signal, 'keyword_only');
+  assert.equal(c('?utm_source=bing&utm_medium=cpc').signal, 'keyword_only');
+  assert.equal(c('?utm_source=tiktok&utm_medium=paid_social').signal, 'keyword_only');
+  assert.equal(c('?utm_source=newsletter&utm_campaign=marketing_digital').isHotsale, false, '"ig" is not a keyword');
 });

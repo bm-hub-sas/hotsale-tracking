@@ -24,7 +24,7 @@ const CONFIG = {
   collectorUrl: 'https://script.google.com/macros/s/AKfycbzeCZ3yX3SDL462PF5tLrPPtU3U3qze3Ptx99QbwUc2lbZAbzK2NjDhrZtdPkbBnj-BGA/exec',
   maxTouchAgeDays: 30,
   hsSources: ['facebook', 'fb', 'instagram', 'ig', 'meta', 'google'],
-  hsKeywords: ['hotsale', 'hot_sale', 'hot-sale', 'hot.sale', 'hotsale2026', 'hotsale_2026', 'hotsale-2026', 'hs2026', 'hs_2026', 'hs-2026', 'hotsale_mar', 'hotsale_marzo', 'hotsalemarzo', 'hotsale_oct', 'hotsale_octubre', 'hotsaleoct', 'hotsaleco', 'hotsale_co', 'hotsalecolombia', 'ccce', 'ccceco', 'ccce2026', 'hotsael', 'hotslae', 'hotsalee', 'epsilon'],
+  hsKeywords: ['facebook', 'fb', 'instagram', 'meta', 'google', 'adwords', 'cpc', 'ppc', 'paid', 'pmax'],
   referrerDomains: ['google.com', 'www.google.com', 'google.com.co', 'www.google.com.co', 'com.google.android.googlequicksearchbox']
 };
 

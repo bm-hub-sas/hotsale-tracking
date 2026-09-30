@@ -84,7 +84,7 @@ El campo `signal` indica qué condición se cumplió:
 - `utm_only`: B, sin A;
 - `keyword_only`: solo C.
 
-Una palabra clave también puede aparecer en campañas propias del aliado. Por eso los envíos `keyword_only` se pueden revisar o mostrar aparte en el reporte.
+Así el reporte puede separar las ventas de las campañas del aliado para el evento (`keyword_only`, por ejemplo `utm_campaign=hotsale_oct` en su propio boletín) de las que llegan desde la plataforma de Hot Sale.
 
 **Modelo: último toque de Hot Sale.**
 
@@ -95,7 +95,7 @@ Una palabra clave también puede aparecer en campañas propias del aliado. Por e
 - **Ventana del evento:** el reporte cuenta las compras hasta `[N días después del cierre del evento — DEFINIR con la CCCE]`. El evento va del 19 al 23 de octubre de 2026, con extensión el 24 y 25 de octubre.
 - Los envíos con `is_test: true` no cuentan en los reportes.
 
-> **Para su equipo de marketing:** no use `hotsale`, `ccce` ni las demás palabras clave en los UTM de sus propias campañas, porque esas visitas contarían como de Hot Sale.
+> **Para su equipo de marketing:** en sus propias campañas para el evento, incluya `hotsale` en algún UTM (por ejemplo, `utm_campaign=hotsale_oct`). Así esas ventas también cuentan como de Hot Sale.
 
 **Lo que este modelo no reclama:**
 

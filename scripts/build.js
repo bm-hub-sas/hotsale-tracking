@@ -39,10 +39,11 @@ const CONFIG = {
 
 // ── Profiles ────────────────────────────────────────────────────────────────
 // Same code, different lists. "hotsale" is what Hot Sale allies install.
-// "prueba-canales" is a TEST build for other clients' stores: it records visits
-// from Facebook/Instagram and Google (by exact utm_source), from Google search
-// (by referrer) and, as in production, the keyword list (inherited from
-// CONFIG). Never install it on a Hot Sale ally.
+// "prueba-canales" is a TEST build for other clients' stores. Their real
+// Facebook/Instagram and Google traffic exercises the same three rules
+// production uses: exact utm_source, referrer (Google search) and keywords
+// inside any UTM, with channel words instead of Hot Sale words. Never install
+// it on a Hot Sale ally.
 const PROFILES = {
   hotsale: {
     outDir: 'dist',
@@ -63,6 +64,9 @@ const PROFILES = {
       // Meta's {{site_source_name}} gives fb / ig; some accounts write facebook
       // / instagram / meta. Google Ads needs utm_source=google in its template.
       HS_SOURCES: ['facebook', 'fb', 'instagram', 'ig', 'meta', 'google'],
+      // Channel words searched inside every UTM, like the Hot Sale keyword list.
+      // "ig" is left out on purpose: as a substring it matches "digital".
+      HS_KEYWORDS: ['facebook', 'fb', 'instagram', 'meta', 'google', 'adwords', 'cpc', 'ppc', 'paid', 'pmax'],
       // Google search (web and the Android Google app). Organic visits carry no UTMs.
       REFERRER_DOMAINS: ['google.com', 'www.google.com', 'google.com.co', 'www.google.com.co',
         'com.google.android.googlequicksearchbox'],

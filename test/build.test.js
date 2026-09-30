@@ -29,7 +29,7 @@ test('the test profile runs exactly the Hot Sale code: only the header and confi
   const test = PROFILES['prueba-canales'];
   const strip = (text) => text.split('\n').filter((l) =>
     !/^(<!-- |\/\/ )(Hot Sale Pixel|Píxel de medición|Código fuente|Generado por|Fin )/.test(l) &&
-    !/^\s*(pixelVersion|collectorUrl|hsSources|referrerDomains):/.test(l)).join('\n');
+    !/^\s*(pixelVersion|collectorUrl|hsSources|hsKeywords|referrerDomains):/.test(l)).join('\n');
   for (const t of TARGETS) {
     assert.equal(strip(render(t, test.config, test)), strip(render(t)), t.out);
     assert.deepEqual(checkSnippet(t, render(t, test.config, test), test.config), [], t.out);
@@ -39,6 +39,8 @@ test('the test profile runs exactly the Hot Sale code: only the header and confi
 test('the Hot Sale profile never captures the test channels', () => {
   assert.deepEqual(PROFILES.hotsale.config.HS_SOURCES, ['hotsale']);
   assert.ok(!PROFILES.hotsale.config.REFERRER_DOMAINS.some((d) => d.includes('google')));
+  assert.ok(!PROFILES.hotsale.config.HS_KEYWORDS.some((k) => /facebook|google|cpc|paid/.test(k)));
+  assert.ok(!PROFILES['prueba-canales'].config.HS_KEYWORDS.some((k) => k.includes('hotsale') || k === 'ccce'));
 });
 
 test('the collector is the only URL in the code and v1 endpoints are gone', () => {
