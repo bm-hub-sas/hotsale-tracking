@@ -13,6 +13,7 @@ El código es idéntico al de `dist/`: solo cambian la versión (`2.0.0-prueba`)
 | Facebook / Instagram pago | `utm_source` es `fb`, `ig`, `facebook`, `instagram` o `meta` | En cada anuncio, en *Parámetros de URL*: `utm_source={{site_source_name}}&utm_medium=paid&utm_campaign={{campaign.name}}&utm_content={{ad.name}}` |
 | Google pago | `utm_source` es `google` | En Google Ads, *Configuración de la cuenta → Sufijo de URL final*: `utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}` |
 | Google orgánico | La visita llega desde `google.com`, `google.com.co` o la app de Google en Android, sin UTM | Nada |
+| Palabras clave de Hot Sale | Algún UTM contiene una de las 26 palabras clave de producción (`hotsale`, `ccce`, `epsilon`…), igual que en `dist/` | Nada. Aparece como `signal = keyword_only` y en el reporte cae en "Otro" |
 
 Tres cosas quedan fuera:
 

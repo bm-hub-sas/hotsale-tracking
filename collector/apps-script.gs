@@ -41,7 +41,7 @@ const FIELDS = [
 const UTM_FIELDS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
 const TEXT_FIELDS = ['pixel_version', 'store_domain', 'sent_at'].concat(UTM_FIELDS);
 const ORDER_TEXT_FIELDS = ['order_id', 'order_value_raw', 'currency', 'value_source'];
-const SIGNALS = ['referrer+utm', 'referrer_only', 'utm_only'];
+const SIGNALS = ['referrer+utm', 'referrer_only', 'utm_only', 'keyword_only'];
 const EVENT_COLUMNS = ['recibido', 'aliado'].concat(FIELDS);
 const TABS = {
   eventos: EVENT_COLUMNS,

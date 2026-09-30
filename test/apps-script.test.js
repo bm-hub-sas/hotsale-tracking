@@ -240,3 +240,15 @@ test('reprocesar rebuilds the same toques and pedidos from the raw log', () => {
   ctx.reprocesar();
   assert.equal(JSON.stringify([tab('toques'), tab('pedidos')]), before);
 });
+
+test('keyword_only events are accepted like any other signal', () => {
+  const { ctx, post, tab } = load();
+  const hit = classify('?utm_campaign=hotsale_newsletter', '', { ...cfg, hsKeywords: ['hotsale'] });
+  assert.equal(hit.signal, 'keyword_only');
+  const v = t.buildTouch(hit, NOW - 60000, 'www.tiendaa.com');
+  post(touchOf(v));
+  post(orderOf(v, ga4('K1', 1000)));
+  ctx.procesar();
+  assert.equal(tab('rechazados').length, 0);
+  assert.equal(tab('pedidos')[0].signal, 'keyword_only');
+});

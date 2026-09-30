@@ -38,7 +38,7 @@ Los campos llegan siempre, en este orden. Ningún campo lleva datos personales, 
 | `currency` | texto | | ✓ | Tres letras en mayúsculas o `""`. Se espera ISO 4217, pero el píxel no la valida contra la lista. **El píxel nunca asume COP** |
 | `order_status` | texto | | ✓ | `complete` si `order_id` no es vacío **y** `order_value > 0`; si no, `incomplete` |
 | `value_source` | texto | | ✓ | Ver tabla de fuentes |
-| `signal` | texto | ✓ | ✓ | `referrer+utm`, `referrer_only` o `utm_only` |
+| `signal` | texto | ✓ | ✓ | `referrer+utm`, `referrer_only`, `utm_only` o `keyword_only` (solo coincidió una palabra clave dentro de los UTM; ver README §3) |
 | `landed_at` | texto ISO 8601 | ✓ | ✓ | Llegada desde Hot Sale, según el **reloj del navegador** |
 | `sent_at` | texto ISO 8601 | ✓ | ✓ | Momento del envío, según el reloj del navegador |
 | `is_test` | booleano | ✓ | ✓ | `true` si `hs_test=1` estaba en la URL de llegada o en la de confirmación |

@@ -73,10 +73,18 @@ Una visita a su tienda cuenta como **toque de Hot Sale** si se cumple al menos u
 
 - **A — referrer:** la página anterior (`document.referrer`) es exactamente uno de estos dominios: `hotsale.com.co`, `www.hotsale.com.co`, `hotsale.co` o `www.hotsale.co`.
 - **B — enlace de Hot Sale:** el parámetro `utm_source` de la URL es exactamente `hotsale`. No distingue mayúsculas y no tiene en cuenta los espacios al inicio o al final.
+- **C — palabra clave:** algún parámetro UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` o `utm_id`) contiene una de las palabras clave de las ediciones anteriores, sin distinguir mayúsculas. Por ejemplo, `utm_campaign=hotsale_newsletter` cuenta porque contiene `hotsale`. La lista es: `hotsale`, `hot_sale`, `hot-sale`, `hot.sale`, `hotsale2026`, `hotsale_2026`, `hotsale-2026`, `hs2026`, `hs_2026`, `hs-2026`, `hotsale_mar`, `hotsale_marzo`, `hotsalemarzo`, `hotsale_oct`, `hotsale_octubre`, `hotsaleoct`, `hotsaleco`, `hotsale_co`, `hotsalecolombia`, `ccce`, `ccceco`, `ccce2026`, `hotsael`, `hotslae`, `hotsalee` y `epsilon`.
 
-No hay coincidencias parciales ni listas de palabras clave. Por ejemplo, `utm_source=hotsale2026`, `utm_campaign=hotsale_newsletter` o un subdominio como `blog.hotsale.com.co` **no** cuentan. Los demás UTM se guardan, pero no deciden nada. Se guardan decodificados, sin espacios al inicio o al final y con un máximo de 200 caracteres. Si un parámetro se repite en la URL, cuenta el primero.
+Los dominios de A se comparan exactos: un subdominio como `blog.hotsale.com.co` no cuenta. Los UTM se guardan decodificados, sin espacios al inicio o al final y con un máximo de 200 caracteres. Si un parámetro se repite en la URL, cuenta el primero.
 
-El campo `signal` indica qué condición se cumplió: `referrer+utm` (A y B), `referrer_only` (solo A) o `utm_only` (solo B).
+El campo `signal` indica qué condición se cumplió:
+
+- `referrer+utm`: A, y además B o C;
+- `referrer_only`: solo A;
+- `utm_only`: B, sin A;
+- `keyword_only`: solo C.
+
+Una palabra clave también puede aparecer en campañas propias del aliado. Por eso los envíos `keyword_only` se pueden revisar o mostrar aparte en el reporte.
 
 **Modelo: último toque de Hot Sale.**
 
@@ -87,12 +95,12 @@ El campo `signal` indica qué condición se cumplió: `referrer+utm` (A y B), `r
 - **Ventana del evento:** el reporte cuenta las compras hasta `[N días después del cierre del evento — DEFINIR con la CCCE]`. El evento va del 19 al 23 de octubre de 2026, con extensión el 24 y 25 de octubre.
 - Los envíos con `is_test: true` no cuentan en los reportes.
 
-> **Para su equipo de marketing:** no use `utm_source=hotsale` en sus propias campañas, porque esas visitas contarían como de Hot Sale.
+> **Para su equipo de marketing:** no use `hotsale`, `ccce` ni las demás palabras clave en los UTM de sus propias campañas, porque esas visitas contarían como de Hot Sale.
 
 **Lo que este modelo no reclama:**
 
 - Compras hechas en otro dispositivo o navegador, porque el toque se guarda en el navegador.
-- Visitas sin referrer de Hot Sale y sin `utm_source=hotsale`. Por ejemplo, alguien que vio Hot Sale y luego escribió su URL o lo buscó en Google.
+- Visitas sin referrer de Hot Sale y sin UTM de Hot Sale. Por ejemplo, alguien que vio Hot Sale y luego escribió su URL o lo buscó en Google.
 - Compras hechas después de la ventana del evento.
 - Un segundo pedido del mismo visitante sin una nueva llegada desde Hot Sale.
 - Compras en navegadores que bloquean o borran el almacenamiento, como el modo privado o Safari cuando borra el almacenamiento de un sitio tras 7 días sin visitas.

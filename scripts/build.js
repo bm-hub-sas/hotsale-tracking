@@ -17,10 +17,22 @@ const CONFIG = {
   // Pixel 2 ignores (and deletes) touches older than this. The attribution
   // window itself is applied by the collector using landed_at.
   MAX_TOUCH_AGE_DAYS: 30,
-  // Exact utm_source values, compared lower-cased and trimmed. No substrings.
+  // Exact utm_source values, compared lower-cased and trimmed.
   // [DEFINIR] Confirm with the media team which utm_source Hot Sale's own
   // paid ads use; add each value explicitly.
   HS_SOURCES: ['hotsale'],
+  // Keywords searched INSIDE every UTM value (lower-cased): the list used in
+  // previous editions. A match with nothing else is labeled "keyword_only".
+  HS_KEYWORDS: [
+    'hotsale', 'hot_sale', 'hot-sale', 'hot.sale',
+    'hotsale2026', 'hotsale_2026', 'hotsale-2026',
+    'hs2026', 'hs_2026', 'hs-2026',
+    'hotsale_mar', 'hotsale_marzo', 'hotsalemarzo',
+    'hotsale_oct', 'hotsale_octubre', 'hotsaleoct',
+    'hotsaleco', 'hotsale_co', 'hotsalecolombia',
+    'ccce', 'ccceco', 'ccce2026',
+    'hotsael', 'hotslae', 'hotsalee', 'epsilon',
+  ],
   // Exact referrer hostnames.
   REFERRER_DOMAINS: ['hotsale.com.co', 'www.hotsale.com.co', 'hotsale.co', 'www.hotsale.co'],
 };
@@ -28,8 +40,9 @@ const CONFIG = {
 // ── Profiles ────────────────────────────────────────────────────────────────
 // Same code, different lists. "hotsale" is what Hot Sale allies install.
 // "prueba-canales" is a TEST build for other clients' stores: it records visits
-// from Facebook/Instagram and Google (by exact utm_source) and from Google
-// search (by referrer). Never install it on a Hot Sale ally.
+// from Facebook/Instagram and Google (by exact utm_source), from Google search
+// (by referrer) and, as in production, the keyword list (inherited from
+// CONFIG). Never install it on a Hot Sale ally.
 const PROFILES = {
   hotsale: {
     outDir: 'dist',
@@ -91,7 +104,7 @@ const FORBIDDEN = [
 const FORBIDDEN_PERSONAL = /email|phone|address|firstName|lastName|lineItems|billing|shipping/i;
 
 function snippetConfig(config) {
-  for (const list of [config.HS_SOURCES, config.REFERRER_DOMAINS]) {
+  for (const list of [config.HS_SOURCES, config.HS_KEYWORDS, config.REFERRER_DOMAINS]) {
     for (const v of list) {
       if (v !== v.trim().toLowerCase()) throw new Error(`config value must be lower-case and trimmed: "${v}"`);
     }
@@ -101,6 +114,7 @@ function snippetConfig(config) {
     collectorUrl: config.COLLECTOR_URL,
     maxTouchAgeDays: config.MAX_TOUCH_AGE_DAYS,
     hsSources: config.HS_SOURCES,
+    hsKeywords: config.HS_KEYWORDS,
     referrerDomains: config.REFERRER_DOMAINS,
   };
 }

@@ -165,11 +165,13 @@ test('the same touch seen again in the session is not re-sent; non-Hot Sale page
   assert.equal(JSON.parse(shared.local.get('hotsale_touch_v2')).utm_campaign, 'a');
 });
 
-test("the ally's own campaign mentioning Hot Sale is not a touch", async () => {
+test('a March keyword in the UTMs counts, labeled keyword_only; other campaigns do not', async () => {
   const p = loadPixel();
+  await p.handlers.page_viewed(pageViewed('?utm_source=brand_email&utm_campaign=black_friday', ''));
+  assert.deepEqual(p.sent, []);
   await p.handlers.page_viewed(pageViewed('?utm_source=brand_email&utm_campaign=hotsale_newsletter', ''));
   await p.handlers.checkout_completed(checkoutCompleted());
-  assert.deepEqual(p.sent, []);
+  assert.deepEqual(p.sent.map((x) => [x.body.event, x.body.signal]), [['touch', 'keyword_only'], ['purchase', 'keyword_only']]);
 });
 
 test('a touch older than MAX_TOUCH_AGE_DAYS sends nothing and is deleted; 29 days still reports', async () => {

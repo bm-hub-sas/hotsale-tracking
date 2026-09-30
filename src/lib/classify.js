@@ -6,8 +6,11 @@
 //
 // Rule (README, "Regla de atribución"):
 //   A: the referrer hostname is exactly one of cfg.referrerDomains, or
-//   B: utm_source, trimmed and lower-cased, is exactly one of cfg.hsSources.
-// No substring matching, no keyword lists, no other UTM field is inspected.
+//   B: utm_source, trimmed and lower-cased, is exactly one of cfg.hsSources, or
+//   C: any UTM value, lower-cased, CONTAINS one of cfg.hsKeywords (the keyword
+//      list used in previous editions).
+// signal names what matched: 'referrer+utm' (A with B or C), 'referrer_only'
+// (A), 'utm_only' (B without A), 'keyword_only' (C alone).
 
 var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
 var MAX_FIELD_LENGTH = 200;
@@ -67,8 +70,21 @@ function inList(value, list) {
   return false;
 }
 
+// True if any UTM value contains one of the keywords (both lower-case).
+function hasKeyword(utms, keywords) {
+  if (!keywords) return false;
+  for (var i = 0; i < UTM_KEYS.length; i++) {
+    var value = utms[UTM_KEYS[i]].toLowerCase();
+    if (!value) continue;
+    for (var k = 0; k < keywords.length; k++) {
+      if (keywords[k] && value.indexOf(keywords[k]) !== -1) return true;
+    }
+  }
+  return false;
+}
+
 // classify(url, referrer, cfg) -> { isHotsale, signal, utms, isTest }
-//   signal: 'referrer+utm' | 'referrer_only' | 'utm_only' | ''
+//   signal: 'referrer+utm' | 'referrer_only' | 'utm_only' | 'keyword_only' | ''
 function classify(url, referrer, cfg) {
   var params = readParams(url, UTM_KEYS.concat(['hs_test']));
   var utms = {};
@@ -77,13 +93,15 @@ function classify(url, referrer, cfg) {
   }
   var byReferrer = inList(hostOf(referrer), cfg.referrerDomains);
   var bySource = inList(utms.utm_source.toLowerCase(), cfg.hsSources);
-  var signal = byReferrer && bySource ? 'referrer+utm'
+  var byKeyword = !bySource && hasKeyword(utms, cfg.hsKeywords);
+  var signal = byReferrer && (bySource || byKeyword) ? 'referrer+utm'
     : byReferrer ? 'referrer_only'
     : bySource ? 'utm_only'
+    : byKeyword ? 'keyword_only'
     : '';
   return { isHotsale: signal !== '', signal: signal, utms: utms, isTest: params.hs_test === '1' };
 }
 
 // @strip-start
-module.exports = { classify: classify, readParams: readParams, hostOf: hostOf, clip: clip, UTM_KEYS: UTM_KEYS };
+module.exports = { classify: classify, readParams: readParams, hostOf: hostOf, clip: clip, hasKeyword: hasKeyword, UTM_KEYS: UTM_KEYS };
 // @strip-end

@@ -143,10 +143,24 @@ test('direct link with utm_source=HotSale (case/space) -> utm_only; VTEX/UA orde
   await context.close();
 });
 
-test("the ally's own campaign mentioning Hot Sale sends nothing", async () => {
+test('a March keyword in any UTM counts, labeled keyword_only', async () => {
   const { context, network, page } = await newVisitor();
   await visit(page, '/landing.html?utm_source=brand_email&utm_medium=email&utm_campaign=hotsale_newsletter');
-  await visit(page, '/landing.html?utm_source=ccce&utm_campaign=epsilon');
+  await visit(page, '/gracias-ga4.html');
+  const [touch, purchase, ...rest] = await collected(2);
+  assert.equal(rest.length, 0);
+  assert.equal(touch.signal, 'keyword_only');
+  assert.equal(touch.utm_campaign, 'hotsale_newsletter');
+  assert.equal(purchase.signal, 'keyword_only');
+  assert.equal(purchase.order_status, 'complete');
+  assertCleanTraffic(network);
+  await context.close();
+});
+
+test('no Hot Sale referrer, source or keyword: nothing is sent', async () => {
+  const { context, network, page } = await newVisitor();
+  await visit(page, '/landing.html?utm_source=google&utm_medium=cpc&utm_campaign=marca');
+  await visit(page, '/landing.html?utm_source=newsletter&utm_campaign=black_friday');
   await visit(page, '/gracias-ga4.html');
   assert.deepEqual(await collected(0, 800), []);
   assert.deepEqual(await storedTouch(page), { local: null, session: null });

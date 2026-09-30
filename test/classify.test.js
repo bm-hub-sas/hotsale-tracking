@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { classify, hostOf, readParams } = require('../src/lib/classify.js');
 const { CONFIG, PROFILES } = require('../scripts/build.js');
 
-const cfg = { hsSources: CONFIG.HS_SOURCES, referrerDomains: CONFIG.REFERRER_DOMAINS };
+const cfg = { hsSources: CONFIG.HS_SOURCES, hsKeywords: CONFIG.HS_KEYWORDS, referrerDomains: CONFIG.REFERRER_DOMAINS };
 const run = (search, referrer = '') => classify(search, referrer, cfg);
 
 test('A: referrer from Hot Sale with no UTMs is a touch (referrer_only)', () => {
@@ -36,18 +36,29 @@ test('utm_source match is case-insensitive and trimmed; the stored value is trim
   assert.equal(run('?utm_source=HotSale%20').utms.utm_source, 'HotSale');
 });
 
-test("the ally's own campaign mentioning Hot Sale is NOT a touch", () => {
-  const r = run('?utm_source=brand_email&utm_medium=email&utm_campaign=hotsale_newsletter');
-  assert.equal(r.isHotsale, false);
-  assert.equal(r.signal, '');
+test('C: a March keyword inside any UTM counts, labeled keyword_only', () => {
+  for (const q of [
+    '?utm_source=brand_email&utm_medium=email&utm_campaign=hotsale_newsletter',
+    '?utm_source=ccce', '?utm_campaign=epsilon', '?utm_medium=hotsale',
+    '?utm_source=hotsale2026', '?utm_source=hot_sale', '?utm_source=hotsael', '?utm_source=hotsale_meta',
+    '?utm_term=HotSale&utm_content=x', '?utm_content=CCCE2026', '?utm_id=hs-2026',
+  ]) {
+    const r = run(q);
+    assert.equal(r.isHotsale, true, q);
+    assert.equal(r.signal, 'keyword_only', q);
+  }
 });
 
-test('keywords from v1 (epsilon, ccce, typos, substrings) are NOT a touch', () => {
-  for (const q of [
-    '?utm_source=ccce', '?utm_source=epsilon', '?utm_campaign=epsilon', '?utm_medium=hotsale',
-    '?utm_source=hotsale2026', '?utm_source=hot_sale', '?utm_source=hotsael', '?utm_source=hotsale_meta',
-    '?utm_term=hotsale&utm_content=ccce',
-  ]) {
+test('an exact utm_source=hotsale is utm_only, not keyword_only', () => {
+  assert.equal(run('?utm_source=hotsale&utm_campaign=hotsale_oct').signal, 'utm_only');
+});
+
+test('referrer plus a keyword is referrer+utm', () => {
+  assert.equal(run('?utm_campaign=hotsale_oct', 'https://hotsale.com.co/').signal, 'referrer+utm');
+});
+
+test('no referrer, no exact source and no keyword: not a touch', () => {
+  for (const q of ['?utm_source=google&utm_medium=cpc&utm_campaign=brand', '?utm_campaign=black_friday', '?utm_source=hs&utm_campaign=sale', '']) {
     assert.equal(run(q).isHotsale, false, q);
   }
 });
@@ -115,7 +126,7 @@ test('clipping never leaves a trailing space', () => {
 
 test('prueba-canales profile: Facebook/Instagram paid, Google paid and Google organic', () => {
   const p = PROFILES['prueba-canales'].config;
-  const c = (search, referrer = '') => classify(search, referrer, { hsSources: p.HS_SOURCES, referrerDomains: p.REFERRER_DOMAINS });
+  const c = (search, referrer = '') => classify(search, referrer, { hsSources: p.HS_SOURCES, hsKeywords: p.HS_KEYWORDS, referrerDomains: p.REFERRER_DOMAINS });
   // Meta ads with {{site_source_name}}
   assert.equal(c('?utm_source=fb&utm_medium=paid&utm_campaign=oct').signal, 'utm_only');
   assert.equal(c('?utm_source=ig&utm_medium=paid').signal, 'utm_only');
@@ -130,5 +141,6 @@ test('prueba-canales profile: Facebook/Instagram paid, Google paid and Google or
   assert.equal(c('?utm_source=newsletter&utm_medium=email').isHotsale, false);
   assert.equal(c('', 'https://l.facebook.com/').isHotsale, false, 'Facebook without UTMs');
   assert.equal(c('', 'https://www.google.com.evil.com/').isHotsale, false);
-  assert.equal(c('?utm_source=hotsale').isHotsale, false, 'Hot Sale is not part of the test profile');
+  assert.equal(c('?utm_source=hotsale').signal, 'keyword_only', 'the March keywords apply in the test profile too');
+  assert.equal(c('?utm_campaign=ccce_oct').signal, 'keyword_only');
 });
