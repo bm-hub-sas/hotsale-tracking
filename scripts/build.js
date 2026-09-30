@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Builds the snippets allies paste: inlines src/lib/* and the config below into
 // src/pixel*.js, wraps the GTM/HTML ones in <script>, runs the safety checks,
-// and writes dist/ plus dist/SHA256SUMS.txt.
+// and writes one folder per profile (see PROFILES) plus its SHA256SUMS.txt.
 //
-//   node scripts/build.js           build dist/
-//   node scripts/build.js --check   fail if dist/ is stale or any check fails
+//   node scripts/build.js           build dist/ and dist-prueba/
+//   node scripts/build.js --check   fail if either is stale or any check fails
 'use strict';
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -24,6 +24,37 @@ const CONFIG = {
   // Exact referrer hostnames.
   REFERRER_DOMAINS: ['hotsale.com.co', 'www.hotsale.com.co', 'hotsale.co', 'www.hotsale.co'],
 };
+
+// ── Profiles ────────────────────────────────────────────────────────────────
+// Same code, different lists. "hotsale" is what Hot Sale allies install.
+// "prueba-canales" is a TEST build for other clients' stores: it records visits
+// from Facebook/Instagram and Google (by exact utm_source) and from Google
+// search (by referrer). Never install it on a Hot Sale ally.
+const PROFILES = {
+  hotsale: {
+    outDir: 'dist',
+    label: 'Hot Sale Pixel',
+    note: 'Es el mismo archivo para todos los aliados.',
+    config: CONFIG,
+  },
+  'prueba-canales': {
+    outDir: 'dist-prueba',
+    label: 'Píxel de medición (prueba de canales)',
+    note: 'Versión de prueba para otras tiendas: no instalar en aliados de Hot Sale.',
+    config: Object.assign({}, CONFIG, {
+      PIXEL_VERSION: '2.0.0-prueba',
+      // A separate web app + Sheet (same collector/apps-script.gs), so these
+      // stores' sales never mix with Hot Sale's data. Placeholder until deployed.
+      COLLECTOR_URL: 'https://script.google.com/macros/s/REEMPLAZAR_ID_DE_PRUEBA/exec',
+      // Meta's {{site_source_name}} gives fb / ig; some accounts write facebook
+      // / instagram / meta. Google Ads needs utm_source=google in its template.
+      HS_SOURCES: ['facebook', 'fb', 'instagram', 'ig', 'meta', 'google'],
+      // Google search (web and the Android Google app). Organic visits carry no UTMs.
+      REFERRER_DOMAINS: ['google.com', 'www.google.com', 'google.com.co', 'www.google.com.co',
+        'com.google.android.googlequicksearchbox'],
+    }),
+  },
+};
 // ────────────────────────────────────────────────────────────────────────────
 
 const fs = require('fs');
@@ -33,7 +64,6 @@ const acorn = require('acorn');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const DIST = path.join(ROOT, 'dist');
 const REPO_URL = 'https://github.com/bm-hub-sas/hotsale-tracking';
 // The v1 (March 2026) Apps Script deployment: public, unauthenticated, retired.
 const V1_ENDPOINT_ID = 'AKfycbydRbTiMXNk8';
@@ -114,12 +144,12 @@ function renderJs(target, config) {
     .replace(/^([ \t]*)\/\* @inline (lib\/[\w-]+\.js) \*\/[ \t]*$/gm, (_, indent, rel) => libSource(rel, indent));
 }
 
-// Returns the final snippet text (what goes in dist/).
-function render(target, config = CONFIG) {
+// Returns the final snippet text (what goes in dist/ or dist-prueba/).
+function render(target, config = CONFIG, profile = PROFILES.hotsale) {
   const header = [
-    `Hot Sale Pixel v${config.PIXEL_VERSION} · ${target.title}`,
+    `${profile.label} v${config.PIXEL_VERSION} · ${target.title}`,
     `Código fuente, documentación y SHA-256: ${REPO_URL}`,
-    `Generado por scripts/build.js desde src/${target.src}. Es el mismo archivo para todos los aliados.`,
+    `Generado por scripts/build.js desde src/${target.src}. ${profile.note}`,
   ];
   const js = renderJs(target, config);
   if (!target.html) return header.map((l) => `// ${l}`).join('\n') + '\n\n' + js;
@@ -130,7 +160,7 @@ function render(target, config = CONFIG) {
     '<script>',
     js.replace(/\s+$/, ''),
     '</script>',
-    `<!-- Fin Hot Sale Pixel v${config.PIXEL_VERSION} -->`,
+    `<!-- Fin ${profile.label} v${config.PIXEL_VERSION} -->`,
     '',
   ].join('\n');
 }
@@ -171,22 +201,25 @@ function sha256(text) {
   return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-function build({ check = false, config = CONFIG, outDir = DIST } = {}) {
-  const outputs = {};
+function build({ check = false } = {}) {
   const problems = [];
-  for (const t of TARGETS) {
-    const text = render(t, config);
-    for (const err of checkSnippet(t, text, config)) problems.push(`${t.out}: ${err}`);
-    outputs[t.out] = text;
-  }
-  outputs['SHA256SUMS.txt'] = TARGETS.map((t) => `${sha256(outputs[t.out])}  ${t.out}`).join('\n') + '\n';
-
-  if (check) {
-    for (const [name, text] of Object.entries(outputs)) {
-      const file = path.join(outDir, name);
-      const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
-      if (current !== text) problems.push(`${name}: dist/ is out of date, run "npm run build"`);
+  const all = {};
+  for (const [name, profile] of Object.entries(PROFILES)) {
+    const outputs = {};
+    for (const t of TARGETS) {
+      const text = render(t, profile.config, profile);
+      for (const err of checkSnippet(t, text, profile.config)) problems.push(`${profile.outDir}/${t.out}: ${err}`);
+      outputs[t.out] = text;
     }
+    outputs['SHA256SUMS.txt'] = TARGETS.map((t) => `${sha256(outputs[t.out])}  ${t.out}`).join('\n') + '\n';
+    if (check) {
+      for (const [file, text] of Object.entries(outputs)) {
+        const full = path.join(ROOT, profile.outDir, file);
+        const current = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null;
+        if (current !== text) problems.push(`${profile.outDir}/${file}: out of date, run "npm run build"`);
+      }
+    }
+    all[name] = outputs;
   }
   if (problems.length) {
     const err = new Error('build failed:\n  ' + problems.join('\n  '));
@@ -194,23 +227,28 @@ function build({ check = false, config = CONFIG, outDir = DIST } = {}) {
     throw err;
   }
   if (!check) {
-    fs.mkdirSync(outDir, { recursive: true });
-    for (const [name, text] of Object.entries(outputs)) fs.writeFileSync(path.join(outDir, name), text);
+    for (const [name, outputs] of Object.entries(all)) {
+      const dir = path.join(ROOT, PROFILES[name].outDir);
+      fs.mkdirSync(dir, { recursive: true });
+      for (const [file, text] of Object.entries(outputs)) fs.writeFileSync(path.join(dir, file), text);
+    }
   }
-  return outputs;
+  return all;
 }
 
-module.exports = { CONFIG, TARGETS, FORBIDDEN, render, checkSnippet, build, sha256, prepareLib, V1_ENDPOINT_ID };
+module.exports = { CONFIG, PROFILES, TARGETS, FORBIDDEN, render, checkSnippet, build, sha256, prepareLib, V1_ENDPOINT_ID };
 
 if (require.main === module) {
   const check = process.argv.includes('--check');
   try {
-    const outputs = build({ check });
-    process.stdout.write(check ? 'dist/ is up to date and passes all checks.\n' : `Wrote dist/ (v${CONFIG.PIXEL_VERSION}):\n`);
-    if (CONFIG.COLLECTOR_URL.includes('REEMPLAZAR')) {
-      process.stdout.write('WARNING: COLLECTOR_URL is still the placeholder. Do not send these files to allies.\n');
+    const all = build({ check });
+    for (const [name, profile] of Object.entries(PROFILES)) {
+      const where = `${profile.outDir}/ (${name}, v${profile.config.PIXEL_VERSION})`;
+      process.stdout.write(check ? `${where} is up to date and passes all checks.\n` : `Wrote ${where}:\n${all[name]['SHA256SUMS.txt']}`);
+      if (profile.config.COLLECTOR_URL.includes('REEMPLAZAR')) {
+        process.stdout.write(`WARNING: ${name} COLLECTOR_URL is still the placeholder. Do not install ${profile.outDir}/ yet.\n`);
+      }
     }
-    if (!check) process.stdout.write(outputs['SHA256SUMS.txt']);
   } catch (e) {
     process.stderr.write(e.message + '\n');
     process.exit(1);

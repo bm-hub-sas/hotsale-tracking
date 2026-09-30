@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { TARGETS, render, checkSnippet, sha256, prepareLib, CONFIG, V1_ENDPOINT_ID } = require('../scripts/build.js');
+const { TARGETS, PROFILES, render, checkSnippet, sha256, prepareLib, CONFIG, V1_ENDPOINT_ID } = require('../scripts/build.js');
 
 const DIST = path.join(__dirname, '..', 'dist');
 const gtm = TARGETS.find((t) => t.src === 'pixel2-gtm.js');
@@ -13,13 +13,32 @@ test('every snippet passes the checks', () => {
   for (const t of TARGETS) assert.deepEqual(checkSnippet(t, render(t)), [], t.out);
 });
 
-test('dist/SHA256SUMS.txt matches the files in dist/', () => {
-  const sums = fs.readFileSync(path.join(DIST, 'SHA256SUMS.txt'), 'utf8').trim().split('\n');
-  assert.equal(sums.length, TARGETS.length);
-  for (const line of sums) {
-    const [hash, name] = line.split('  ');
-    assert.equal(sha256(fs.readFileSync(path.join(DIST, name), 'utf8')), hash, name);
+test('each profile folder: SHA256SUMS.txt matches its files', () => {
+  for (const profile of Object.values(PROFILES)) {
+    const dir = path.join(__dirname, '..', profile.outDir);
+    const sums = fs.readFileSync(path.join(dir, 'SHA256SUMS.txt'), 'utf8').trim().split('\n');
+    assert.equal(sums.length, TARGETS.length, profile.outDir);
+    for (const line of sums) {
+      const [hash, name] = line.split('  ');
+      assert.equal(sha256(fs.readFileSync(path.join(dir, name), 'utf8')), hash, `${profile.outDir}/${name}`);
+    }
   }
+});
+
+test('the test profile runs exactly the Hot Sale code: only the header and config lists differ', () => {
+  const test = PROFILES['prueba-canales'];
+  const strip = (text) => text.split('\n').filter((l) =>
+    !/^(<!-- |\/\/ )(Hot Sale Pixel|Píxel de medición|Código fuente|Generado por|Fin )/.test(l) &&
+    !/^\s*(pixelVersion|collectorUrl|hsSources|referrerDomains):/.test(l)).join('\n');
+  for (const t of TARGETS) {
+    assert.equal(strip(render(t, test.config, test)), strip(render(t)), t.out);
+    assert.deepEqual(checkSnippet(t, render(t, test.config, test), test.config), [], t.out);
+  }
+});
+
+test('the Hot Sale profile never captures the test channels', () => {
+  assert.deepEqual(PROFILES.hotsale.config.HS_SOURCES, ['hotsale']);
+  assert.ok(!PROFILES.hotsale.config.REFERRER_DOMAINS.some((d) => d.includes('google')));
 });
 
 test('the collector is the only URL in the code and v1 endpoints are gone', () => {

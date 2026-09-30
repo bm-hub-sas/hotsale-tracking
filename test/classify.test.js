@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { classify, hostOf, readParams } = require('../src/lib/classify.js');
-const { CONFIG } = require('../scripts/build.js');
+const { CONFIG, PROFILES } = require('../scripts/build.js');
 
 const cfg = { hsSources: CONFIG.HS_SOURCES, referrerDomains: CONFIG.REFERRER_DOMAINS };
 const run = (search, referrer = '') => classify(search, referrer, cfg);
@@ -111,4 +111,24 @@ test('a full URL works too; the fragment is ignored', () => {
 test('clipping never leaves a trailing space', () => {
   const r = run('?utm_source=hotsale&utm_campaign=' + 'x'.repeat(199) + '%20yyy');
   assert.equal(r.utms.utm_campaign, 'x'.repeat(199));
+});
+
+test('prueba-canales profile: Facebook/Instagram paid, Google paid and Google organic', () => {
+  const p = PROFILES['prueba-canales'].config;
+  const c = (search, referrer = '') => classify(search, referrer, { hsSources: p.HS_SOURCES, referrerDomains: p.REFERRER_DOMAINS });
+  // Meta ads with {{site_source_name}}
+  assert.equal(c('?utm_source=fb&utm_medium=paid&utm_campaign=oct').signal, 'utm_only');
+  assert.equal(c('?utm_source=ig&utm_medium=paid').signal, 'utm_only');
+  assert.equal(c('?utm_source=Facebook&utm_medium=cpc').signal, 'utm_only');
+  // Google Ads with a tracking template; the click comes with a Google referrer
+  assert.equal(c('?utm_source=google&utm_medium=cpc&gclid=abc', 'https://www.google.com/').signal, 'referrer+utm');
+  // Google organic: no UTMs, Google referrer (web, .com.co and the Android app)
+  assert.equal(c('', 'https://www.google.com/').signal, 'referrer_only');
+  assert.equal(c('', 'https://www.google.com.co/').signal, 'referrer_only');
+  assert.equal(c('', 'android-app://com.google.android.googlequicksearchbox/').signal, 'referrer_only');
+  // Not captured
+  assert.equal(c('?utm_source=newsletter&utm_medium=email').isHotsale, false);
+  assert.equal(c('', 'https://l.facebook.com/').isHotsale, false, 'Facebook without UTMs');
+  assert.equal(c('', 'https://www.google.com.evil.com/').isHotsale, false);
+  assert.equal(c('?utm_source=hotsale').isHotsale, false, 'Hot Sale is not part of the test profile');
 });

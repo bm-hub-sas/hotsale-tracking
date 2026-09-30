@@ -1,0 +1,307 @@
+<!-- Píxel de medición (prueba de canales) v2.0.0-prueba · Pixel 1 — captura (todas las páginas) -->
+<!-- Código fuente, documentación y SHA-256: https://github.com/bm-hub-sas/hotsale-tracking -->
+<!-- Generado por scripts/build.js desde src/pixel1-capture.js. Versión de prueba para otras tiendas: no instalar en aliados de Hot Sale. -->
+<script>
+// Pixel 1 — capture. ES5, safe for GTM Custom HTML. Runs on every page.
+// Source of truth: scripts/build.js inlines the libs and the config and writes
+// dist/pixel1-todas-las-paginas.html, which is what allies paste.
+//
+// What it does, and nothing else:
+//   1. Removes the v1 key "hotsale_data" if an old install left it behind, and
+//      a stored touch older than CONFIG.maxTouchAgeDays.
+//   2. Classifies the visit (lib/classify.js). Not a Hot Sale touch -> stop.
+//   3. Stores the touch under "hotsale_touch_v2" in sessionStorage and
+//      localStorage and reports it with event "touch", unless it repeats the
+//      stored touch within 30 minutes (lib/touch.js, isRepeat).
+// No listeners, no timers, no DOM changes, no cookies.
+(function () {
+  'use strict';
+
+  var CONFIG = {
+    pixelVersion: '2.0.0-prueba',
+    collectorUrl: 'https://script.google.com/macros/s/REEMPLAZAR_ID_DE_PRUEBA/exec',
+    maxTouchAgeDays: 30,
+    hsSources: ['facebook', 'fb', 'instagram', 'ig', 'meta', 'google'],
+    referrerDomains: ['google.com', 'www.google.com', 'google.com.co', 'www.google.com.co', 'com.google.android.googlequicksearchbox']
+  };
+
+  // Decides whether a page view is a Hot Sale touch.
+  //
+  // Rule (README, "Regla de atribución"):
+  //   A: the referrer hostname is exactly one of cfg.referrerDomains, or
+  //   B: utm_source, trimmed and lower-cased, is exactly one of cfg.hsSources.
+  // No substring matching, no keyword lists, no other UTM field is inspected.
+
+  var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
+  var MAX_FIELD_LENGTH = 200;
+
+  function clip(value, max) {
+    var s = value == null ? '' : String(value);
+    return s.length > max ? s.slice(0, max) : s;
+  }
+
+  function decodeParam(s) {
+    try {
+      return decodeURIComponent(s.replace(/\+/g, ' '));
+    } catch (e) {
+      return s;
+    }
+  }
+
+  // Returns the first value of each wanted key found in the query string of
+  // `url` (a full URL or just "?a=b"). Only wanted keys are read.
+  function readParams(url, wanted) {
+    var out = {};
+    var s = String(url || '');
+    var hash = s.indexOf('#');
+    if (hash !== -1) s = s.slice(0, hash);
+    var q = s.indexOf('?');
+    if (q === -1) return out;
+    s = s.slice(q + 1);
+    var pairs = s.split('&');
+    for (var i = 0; i < pairs.length; i++) {
+      if (!pairs[i]) continue;
+      var eq = pairs[i].indexOf('=');
+      var key = decodeParam(eq === -1 ? pairs[i] : pairs[i].slice(0, eq));
+      var val = eq === -1 ? '' : decodeParam(pairs[i].slice(eq + 1));
+      for (var k = 0; k < wanted.length; k++) {
+        if (wanted[k] === key && !Object.prototype.hasOwnProperty.call(out, key)) out[key] = val;
+      }
+    }
+    return out;
+  }
+
+  // Hostname of an absolute URL, lower-cased, without userinfo, port or trailing
+  // dot. "" if the string is not an absolute URL.
+  function hostOf(url) {
+    var m = /^[a-z][a-z0-9+.\-]*:\/\/([^\/?#]*)/i.exec(String(url || ''));
+    if (!m) return '';
+    var authority = m[1];
+    var at = authority.lastIndexOf('@');
+    if (at !== -1) authority = authority.slice(at + 1);
+    return authority.replace(/:\d*$/, '').replace(/\.$/, '').toLowerCase();
+  }
+
+  function inList(value, list) {
+    if (!value) return false;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] === value) return true;
+    }
+    return false;
+  }
+
+  // classify(url, referrer, cfg) -> { isHotsale, signal, utms, isTest }
+  //   signal: 'referrer+utm' | 'referrer_only' | 'utm_only' | ''
+  function classify(url, referrer, cfg) {
+    var params = readParams(url, UTM_KEYS.concat(['hs_test']));
+    var utms = {};
+    for (var i = 0; i < UTM_KEYS.length; i++) {
+      utms[UTM_KEYS[i]] = clip(String(params[UTM_KEYS[i]] || '').replace(/^\s+/, ''), MAX_FIELD_LENGTH).replace(/\s+$/, '');
+    }
+    var byReferrer = inList(hostOf(referrer), cfg.referrerDomains);
+    var bySource = inList(utms.utm_source.toLowerCase(), cfg.hsSources);
+    var signal = byReferrer && bySource ? 'referrer+utm'
+      : byReferrer ? 'referrer_only'
+      : bySource ? 'utm_only'
+      : '';
+    return { isHotsale: signal !== '', signal: signal, utms: utms, isTest: params.hs_test === '1' };
+  }
+  // The stored touch and the payloads sent to the collector. Field order of the
+  // payloads follows docs/contrato-collector.md.
+
+  var TOUCH_KEY = 'hotsale_touch_v2';
+  var SENT_KEY_PREFIX = 'hotsale_sent_';
+  var DAY_MS = 86400000;
+  var REPEAT_WINDOW_MS = 30 * 60000;
+
+  // The object stored under TOUCH_KEY.
+  function buildTouch(hit, nowMs, storeDomain) {
+    return {
+      v: 2,
+      landed_at: new Date(nowMs).toISOString(),
+      signal: hit.signal,
+      store_domain: storeDomain,
+      is_test: hit.isTest,
+      utm_source: hit.utms.utm_source,
+      utm_medium: hit.utms.utm_medium,
+      utm_campaign: hit.utms.utm_campaign,
+      utm_content: hit.utms.utm_content,
+      utm_term: hit.utms.utm_term,
+      utm_id: hit.utms.utm_id
+    };
+  }
+
+  // Stored JSON -> touch, or null if missing, malformed or not v2 (v1 leftovers
+  // under the old key "hotsale_data" are never read).
+  function parseTouch(json) {
+    if (!json) return null;
+    var t;
+    try {
+      t = JSON.parse(json);
+    } catch (e) {
+      return null;
+    }
+    if (!t || t.v !== 2 || typeof t.landed_at !== 'string' || isNaN(Date.parse(t.landed_at))) return null;
+    return t;
+  }
+
+  // Two touches are the same if their UTMs and is_test match. landed_at,
+  // signal and store_domain are ignored: a reload of the landing page, or a
+  // store that carries the UTMs over to internal links (the referrer is then
+  // the store itself, so the signal changes), is not a new touch.
+  function sameTouch(a, b) {
+    if (!a || !b) return false;
+    var keys = ['is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
+    for (var i = 0; i < keys.length; i++) {
+      if (a[keys[i]] !== b[keys[i]]) return false;
+    }
+    return true;
+  }
+
+  // True if `touch` repeats the stored touch: same UTMs and is_test, landed less
+  // than 30 minutes ago (in this tab or another). A repeat is not reported
+  // again and does not move landed_at, so a reload or the same link opened in
+  // two tabs is one visit, while the same link followed days later is a new one.
+  function isRepeat(stored, touch, nowMs) {
+    if (!sameTouch(stored, touch)) return false;
+    var age = nowMs - Date.parse(stored.landed_at);
+    return age >= 0 && age < REPEAT_WINDOW_MS;
+  }
+
+  // The most recent of two touches (either may be null).
+  function latestTouch(a, b) {
+    if (!a) return b || null;
+    if (!b) return a;
+    return Date.parse(b.landed_at) > Date.parse(a.landed_at) ? b : a;
+  }
+
+  // Older than maxDays, or more than a day in the future (clock changed).
+  function isExpired(touch, nowMs, maxDays) {
+    var age = nowMs - Date.parse(touch.landed_at);
+    return age > maxDays * DAY_MS || age < -DAY_MS;
+  }
+
+  function basePayload(event, storeDomain, touch, nowMs, isTest, cfg, order) {
+    var p = {
+      v: 2,
+      pixel_version: cfg.pixelVersion,
+      event: event,
+      store_domain: storeDomain
+    };
+    if (order) {
+      p.order_id = order.order_id;
+      p.order_value = order.order_value;
+      p.order_value_raw = order.order_value_raw;
+      p.currency = order.currency;
+      p.order_status = order.order_status;
+      p.value_source = order.value_source;
+    }
+    p.signal = touch.signal;
+    p.landed_at = touch.landed_at;
+    p.sent_at = new Date(nowMs).toISOString();
+    p.is_test = isTest === true;
+    p.utm_source = touch.utm_source || '';
+    p.utm_medium = touch.utm_medium || '';
+    p.utm_campaign = touch.utm_campaign || '';
+    p.utm_content = touch.utm_content || '';
+    p.utm_term = touch.utm_term || '';
+    p.utm_id = touch.utm_id || '';
+    return p;
+  }
+
+  function touchPayload(touch, storeDomain, nowMs, cfg) {
+    return basePayload('touch', storeDomain, touch, nowMs, touch.is_test, cfg, null);
+  }
+
+  function purchasePayload(touch, order, storeDomain, nowMs, isTest, cfg) {
+    return basePayload('purchase', storeDomain, touch, nowMs, isTest, cfg, order);
+  }
+
+  // Double-send guard for the thank-you page. `previous` is the status stored
+  // under SENT_KEY_PREFIX + order_id in sessionStorage (or null). An incomplete
+  // report may be followed by one complete report of the same order; nothing
+  // is ever sent twice with the same status.
+  function shouldSend(previous, status) {
+    if (previous === 'complete') return false;
+    if (previous === 'incomplete') return status === 'complete';
+    return true;
+  }
+  // Storage access and transport for the GTM/HTML snippets. Every function
+  // swallows errors: storage can be blocked (private mode, strict privacy
+  // settings) and the pixel must never break the page.
+
+  function storageGet(area, key) {
+    try {
+      return window[area].getItem(key);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function storageSet(area, key, value) {
+    try {
+      window[area].setItem(key, value);
+    } catch (e) {}
+  }
+
+  function storageRemove(area, key) {
+    try {
+      window[area].removeItem(key);
+    } catch (e) {}
+  }
+
+  // The only network request the pixel makes. The body is a string, so both
+  // paths send Content-Type text/plain;charset=UTF-8: a CORS "simple" request,
+  // no preflight. The fetch fallback sends no credentials.
+  function send(url, payload) {
+    var body = JSON.stringify(payload);
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon(url, body)) return;
+    } catch (e) {}
+    try {
+      if (window.fetch) {
+        window.fetch(url, { method: 'POST', body: body, keepalive: true, credentials: 'omit' }).then(null, function () {});
+      }
+    } catch (e) {}
+  }
+
+  // Deletes a stored touch that is expired or unreadable, so no touch is
+  // kept longer than CONFIG.maxTouchAgeDays past the visitor's next page view.
+  function dropStale(area, now) {
+    var raw = storageGet(area, TOUCH_KEY);
+    if (!raw) return;
+    var stored = parseTouch(raw);
+    if (!stored || isExpired(stored, now, CONFIG.maxTouchAgeDays)) storageRemove(area, TOUCH_KEY);
+  }
+
+  try {
+    var now = new Date().getTime();
+    storageRemove('localStorage', 'hotsale_data');
+    storageRemove('sessionStorage', 'hotsale_data');
+    dropStale('localStorage', now);
+    dropStale('sessionStorage', now);
+
+    var hit = classify(location.search, document.referrer, CONFIG);
+    if (!hit.isHotsale) return;
+
+    var touch = buildTouch(hit, now, location.hostname);
+
+    // Same touch recorded less than 30 minutes ago (a reload, or the same link
+    // in another tab): keep the original landed_at and do not report again.
+    var stored = latestTouch(
+      parseTouch(storageGet('sessionStorage', TOUCH_KEY)),
+      parseTouch(storageGet('localStorage', TOUCH_KEY))
+    );
+    if (isRepeat(stored, touch, now)) return;
+
+    // A new Hot Sale touch replaces the previous one. Visits that are not
+    // Hot Sale touches never reach this point, so they never clear it.
+    var json = JSON.stringify(touch);
+    storageSet('sessionStorage', TOUCH_KEY, json);
+    storageSet('localStorage', TOUCH_KEY, json);
+
+    send(CONFIG.collectorUrl, touchPayload(touch, location.hostname, now, CONFIG));
+  } catch (e) {}
+})();
+</script>
+<!-- Fin Píxel de medición (prueba de canales) v2.0.0-prueba -->

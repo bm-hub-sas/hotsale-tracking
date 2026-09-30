@@ -173,7 +173,7 @@ Get-FileHash .\pixel2-gtm-confirmacion.html -Algorithm SHA256        # Windows
 npm install
 npm test            # pruebas unitarias y verificación de que dist/ está al día
 npm run test:e2e    # Chromium (Playwright) contra un collector simulado
-npm run build       # regenera dist/ y dist/SHA256SUMS.txt
+npm run build       # regenera dist/ y dist-prueba/, con sus SHA256SUMS.txt
 ```
 
 ```
@@ -185,6 +185,7 @@ collector/apps-script.gs   el collector (Google Apps Script + hoja de cálculo)
 scripts/build.js           configuración, compilación y verificaciones
 test/                      pruebas unitarias, arnés de Shopify, collector y e2e
 dist/                      lo que se pega en las tiendas (generado, versionado)
+dist-prueba/               versión de prueba para otras tiendas (Facebook, Google): ver docs/prueba-canales.md
 docs/                      guías de instalación, pruebas y contrato del collector
 iframe-reporte-marca       inserción del reporte de Looker Studio para marcas (no es parte del píxel)
 ```
