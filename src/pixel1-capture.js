@@ -13,7 +13,6 @@
 (function () {
   'use strict';
 
-  var SITE_KEY = 'REEMPLAZAR_SITE_KEY';
   /* @config */
 
   /* @inline lib/classify.js */
@@ -55,6 +54,6 @@
     storageSet('sessionStorage', TOUCH_KEY, json);
     storageSet('localStorage', TOUCH_KEY, json);
 
-    send(CONFIG.collectorUrl, touchPayload(touch, location.hostname, now, SITE_KEY, CONFIG));
+    send(CONFIG.collectorUrl, touchPayload(touch, location.hostname, now, CONFIG));
   } catch (e) {}
 })();

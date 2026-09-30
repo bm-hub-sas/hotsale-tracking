@@ -2,7 +2,7 @@
 
 En Shopify se instala **un solo píxel personalizado**, que registra la llegada desde Hot Sale y la compra. **No se pega nada en `theme.liquid`.**
 
-Necesita el archivo `pixel2-shopify-customer-events.js` que le envió Hot Sale, ya con su `site_key`.
+Necesita el archivo `pixel2-shopify-customer-events.js`, que es el mismo para todas las tiendas.
 
 > **Estado de verificación:** `[PENDIENTE]` Falta la prueba con una compra real en una tienda de desarrollo de Shopify. La lógica está probada contra la API documentada de Shopify (ver [Notas técnicas](#notas-técnicas)). Mientras tanto, haga la [prueba](pruebas.md) en su tienda antes del evento.
 
@@ -63,4 +63,4 @@ Diferencia con la versión de marzo: los píxeles personalizados corren en un if
 Otros detalles:
 
 - En algunas tiendas, `order.id` llega como `gid://shopify/OrderIdentity/5210499102` y en otras como `5210499102`. El píxel envía siempre el número. Es el ID interno del pedido; el evento no trae el nombre `#1001`.
-- Si `browser.sendBeacon` deja de existir, el píxel usa `fetch`. Ese `fetch` sale del iframe aislado con `Origin: null` (ver [contrato del collector](contrato-collector.md#encabezado-origin)).
+- Si `browser.sendBeacon` deja de existir, el píxel usa `fetch`.

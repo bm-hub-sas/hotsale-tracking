@@ -7,7 +7,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
-const { startServer, TEST_SITE_KEY } = require('./mock-collector.js');
+const { startServer } = require('./mock-collector.js');
 
 const DAY = 86400000;
 let server;
@@ -93,7 +93,7 @@ function assertCleanTraffic(network) {
     assert.equal(r.contentType, 'text/plain;charset=UTF-8');
     assert.equal(r.origin, STORE);
     assert.equal(r.cookie, null);
-    assert.equal(r.body.site_key, TEST_SITE_KEY);
+    assert.equal(r.body.site_key, undefined);
     assert.equal(r.body.pixel_version, '2.0.0');
   }
 }

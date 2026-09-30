@@ -5,27 +5,26 @@ Con esta prueba se confirma que el píxel registra la llegada desde Hot Sale y l
 ## 1. Llegada desde Hot Sale
 
 1. Abra una **ventana privada**, para empezar sin datos anteriores.
-2. Abra las herramientas de desarrollo (F12) y vaya a la pestaña **Red** (Network). Escriba `collect` en el filtro.
+2. Abra las herramientas de desarrollo (F12) y vaya a la pestaña **Red** (Network). Escriba `exec` en el filtro.
 3. Visite su tienda con esta URL, cambiando el dominio:
 
    ```
    https://SU-TIENDA.com/?utm_source=hotsale&utm_medium=referral&utm_campaign=prueba&hs_test=1
    ```
 
-4. Debe aparecer **una** petición `POST` a `px.hotsale.com.co/v1/collect`. Puede aparecer como tipo `ping` o `beacon`. En la pestaña *Payload* (Carga útil) debe ver:
+4. Debe aparecer **una** petición `POST` a `script.google.com/macros/s/…/exec`. Puede aparecer como tipo `ping` o `beacon`, seguida de una redirección a `script.googleusercontent.com`, que es la respuesta normal de Google. En la pestaña *Payload* (Carga útil) debe ver:
    - `"event": "touch"`
    - `"signal": "utm_only"`
    - `"is_test": true`
-   - `"site_key"`: el suyo, no `REEMPLAZAR_SITE_KEY`
 
-   Si la petición aparece bloqueada, revise su Content-Security-Policy: `https://px.hotsale.com.co` debe estar en `connect-src`.
+   Si la petición aparece bloqueada, revise su Content-Security-Policy: `https://script.google.com` y `https://script.googleusercontent.com` deben estar en `connect-src`.
 5. En **Aplicación → Almacenamiento local** (Application → Local storage), dentro de su dominio, debe estar la clave `hotsale_touch_v2`.
 6. Recargue la página. No debe aparecer una segunda petición.
 
 ## 2. Compra
 
 1. En la misma ventana, haga una compra de prueba. Puede usar el modo de prueba de su pasarela o un pedido que luego cancele.
-2. En la página de confirmación debe aparecer **una** petición a `px.hotsale.com.co/v1/collect` con:
+2. En la página de confirmación debe aparecer **una** petición a `script.google.com` con:
    - `"event": "purchase"`
    - `"order_id"`: el identificador de su pedido. En Shopify es el ID interno que aparece en la URL del pedido en el administrador, no el número `#1001`
    - `"order_value"`: el valor, como número
@@ -39,7 +38,7 @@ Con esta prueba se confirma que el píxel registra la llegada desde Hot Sale y l
 
 ## 3. Que no haga nada más
 
-- En la pestaña **Red**, filtre por `hotsale`. Solo debe haber peticiones a `px.hotsale.com.co`.
+- En la pestaña **Red**, filtre por `exec`. Solo debe haber peticiones a `script.google.com`, y ninguna otra relacionada con Hot Sale.
 - Filtre por `facebook`, `fbevents`, `gtag` y `google-analytics`. Si aparecen, deben ser de sus propias etiquetas; el píxel de Hot Sale no carga ninguna.
 - Si usa el Meta Pixel Helper o Google Tag Assistant, no debe aparecer ningún evento de Hot Sale.
 

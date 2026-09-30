@@ -12,12 +12,9 @@
 // the store's own storage, where the touch lives. window.localStorage inside
 // the sandbox is a snapshot and is not used.
 // The request goes through browser.sendBeacon, which Shopify runs in the top
-// frame, so the collector sees the store's Origin. Shopify marks it deprecated;
-// if it is unavailable, fetch is used, and a fetch from the sandbox carries
-// "Origin: null" (see docs/contrato-collector.md).
+// frame. Shopify marks it deprecated; if it is unavailable, fetch is used.
 // Order id, value and currency are the only order fields read.
 
-const SITE_KEY = 'REEMPLAZAR_SITE_KEY';
 /* @config */
 
 /* @inline lib/classify.js */
@@ -105,7 +102,7 @@ analytics.subscribe('page_viewed', async (event) => {
     const json = JSON.stringify(touch);
     await storageSet(browser.sessionStorage, TOUCH_KEY, json);
     await storageSet(browser.localStorage, TOUCH_KEY, json);
-    await send(touchPayload(touch, doc.location.hostname, now, SITE_KEY, CONFIG));
+    await send(touchPayload(touch, doc.location.hostname, now, CONFIG));
   } catch (e) {}
 });
 
@@ -143,7 +140,7 @@ analytics.subscribe('checkout_completed', async (event) => {
 
     const doc = event.context.document;
     const isTest = touch.is_test === true || readParams(doc.location.search, ['hs_test']).hs_test === '1';
-    await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, SITE_KEY, CONFIG));
+    await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, CONFIG));
 
     // One touch, one order: an order with an id uses up the touch.
     if (order.order_id) await forgetTouch();

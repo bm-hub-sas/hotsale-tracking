@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { TARGETS, render, checkSnippet, sha256, prepareLib, CONFIG } = require('../scripts/build.js');
+const { TARGETS, render, checkSnippet, sha256, prepareLib, CONFIG, V1_ENDPOINT_ID } = require('../scripts/build.js');
 
 const DIST = path.join(__dirname, '..', 'dist');
 const gtm = TARGETS.find((t) => t.src === 'pixel2-gtm.js');
@@ -26,7 +26,7 @@ test('the collector is the only URL in the code and v1 endpoints are gone', () =
   for (const t of TARGETS) {
     const text = render(t);
     assert.ok(text.includes(`'${CONFIG.COLLECTOR_URL}'`), t.out);
-    assert.ok(!/G-CD4K6VN4YV|8614226731956808|AKfycb/.test(text), t.out);
+    assert.ok(!text.includes('G-CD4K6VN4YV') && !text.includes('8614226731956808') && !text.includes(V1_ENDPOINT_ID), t.out);
   }
 });
 
@@ -36,7 +36,8 @@ test('the checks catch what they claim to catch', () => {
   const cases = {
     "fbq('track', 'Purchase');": 'fbq(',
     "gtag('config', 'G-X');": 'gtag(',
-    "var u = 'https://script.google.com/macros/s/x/exec';": 'script.google.com',
+    "var u = 'https://script.google.com/macros/s/x/exec';": 'URL other than the collector',
+    "var old = 'AKfycbydRbTiMXNk8_yzuVMPcyMMlDv1';": V1_ENDPOINT_ID,
     "var s = 'https://www.googletagmanager.com/gtag/js';": 'googletagmanager',
     "var f = 'https://connect.facebook.net/en_US/fbevents.js';": 'connect.facebook.net',
     'localStorage.clear();': 'localStorage.clear',
@@ -66,9 +67,11 @@ test('the Shopify snippet may use modern syntax but not forbidden APIs', () => {
   assert.ok(checkSnippet(shopify, bad).some((e) => e.includes('browser.cookie')));
 });
 
-test('the SITE_KEY placeholder is present exactly once per snippet', () => {
+test('every ally gets the same file: no per-ally placeholder, one collector URL', () => {
   for (const t of TARGETS) {
-    assert.equal(render(t).split("'REEMPLAZAR_SITE_KEY'").length - 1, 1, t.out);
+    const text = render(t);
+    assert.ok(!/SITE_KEY|site_key/.test(text), t.out);
+    assert.equal(text.split(`'${CONFIG.COLLECTOR_URL}'`).length - 1, 1, t.out);
   }
 });
 

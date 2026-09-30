@@ -1,6 +1,6 @@
 // Hot Sale Pixel v2.0.0 · Shopify — píxel personalizado (Customer events)
 // Código fuente, documentación y SHA-256: https://github.com/bm-hub-sas/hotsale-tracking
-// Generado por scripts/build.js desde src/pixel2-shopify.js. Lo único que cambia entre aliados es SITE_KEY.
+// Generado por scripts/build.js desde src/pixel2-shopify.js. Es el mismo archivo para todos los aliados.
 
 // Shopify custom pixel (Settings -> Customer events -> Add custom pixel).
 // Source of truth: scripts/build.js inlines the libs and the config and writes
@@ -16,15 +16,12 @@
 // the store's own storage, where the touch lives. window.localStorage inside
 // the sandbox is a snapshot and is not used.
 // The request goes through browser.sendBeacon, which Shopify runs in the top
-// frame, so the collector sees the store's Origin. Shopify marks it deprecated;
-// if it is unavailable, fetch is used, and a fetch from the sandbox carries
-// "Origin: null" (see docs/contrato-collector.md).
+// frame. Shopify marks it deprecated; if it is unavailable, fetch is used.
 // Order id, value and currency are the only order fields read.
 
-const SITE_KEY = 'REEMPLAZAR_SITE_KEY';
 const CONFIG = {
   pixelVersion: '2.0.0',
-  collectorUrl: 'https://px.hotsale.com.co/v1/collect',
+  collectorUrl: 'https://script.google.com/macros/s/REEMPLAZAR_ID_DEL_SCRIPT/exec',
   maxTouchAgeDays: 30,
   hsSources: ['hotsale'],
   referrerDomains: ['hotsale.com.co', 'www.hotsale.com.co', 'hotsale.co', 'www.hotsale.co']
@@ -343,11 +340,10 @@ function isExpired(touch, nowMs, maxDays) {
   return age > maxDays * DAY_MS || age < -DAY_MS;
 }
 
-function basePayload(event, storeDomain, touch, nowMs, isTest, siteKey, cfg, order) {
+function basePayload(event, storeDomain, touch, nowMs, isTest, cfg, order) {
   var p = {
     v: 2,
     pixel_version: cfg.pixelVersion,
-    site_key: siteKey,
     event: event,
     store_domain: storeDomain
   };
@@ -372,12 +368,12 @@ function basePayload(event, storeDomain, touch, nowMs, isTest, siteKey, cfg, ord
   return p;
 }
 
-function touchPayload(touch, storeDomain, nowMs, siteKey, cfg) {
-  return basePayload('touch', storeDomain, touch, nowMs, touch.is_test, siteKey, cfg, null);
+function touchPayload(touch, storeDomain, nowMs, cfg) {
+  return basePayload('touch', storeDomain, touch, nowMs, touch.is_test, cfg, null);
 }
 
-function purchasePayload(touch, order, storeDomain, nowMs, isTest, siteKey, cfg) {
-  return basePayload('purchase', storeDomain, touch, nowMs, isTest, siteKey, cfg, order);
+function purchasePayload(touch, order, storeDomain, nowMs, isTest, cfg) {
+  return basePayload('purchase', storeDomain, touch, nowMs, isTest, cfg, order);
 }
 
 // Double-send guard for the thank-you page. `previous` is the status stored
@@ -471,7 +467,7 @@ analytics.subscribe('page_viewed', async (event) => {
     const json = JSON.stringify(touch);
     await storageSet(browser.sessionStorage, TOUCH_KEY, json);
     await storageSet(browser.localStorage, TOUCH_KEY, json);
-    await send(touchPayload(touch, doc.location.hostname, now, SITE_KEY, CONFIG));
+    await send(touchPayload(touch, doc.location.hostname, now, CONFIG));
   } catch (e) {}
 });
 
@@ -509,7 +505,7 @@ analytics.subscribe('checkout_completed', async (event) => {
 
     const doc = event.context.document;
     const isTest = touch.is_test === true || readParams(doc.location.search, ['hs_test']).hs_test === '1';
-    await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, SITE_KEY, CONFIG));
+    await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, CONFIG));
 
     // One touch, one order: an order with an id uses up the touch.
     if (order.order_id) await forgetTouch();

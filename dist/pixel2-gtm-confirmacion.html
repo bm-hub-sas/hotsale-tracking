@@ -1,6 +1,6 @@
 <!-- Hot Sale Pixel v2.0.0 · Pixel 2 — conversión (página de confirmación de compra) -->
 <!-- Código fuente, documentación y SHA-256: https://github.com/bm-hub-sas/hotsale-tracking -->
-<!-- Generado por scripts/build.js desde src/pixel2-gtm.js. Lo único que cambia entre aliados es SITE_KEY. -->
+<!-- Generado por scripts/build.js desde src/pixel2-gtm.js. Es el mismo archivo para todos los aliados. -->
 <script>
 // Pixel 2 — conversion for GTM or plain HTML. ES5. Runs on the order
 // confirmation ("thank you") page only.
@@ -21,10 +21,9 @@
 (function () {
   'use strict';
 
-  var SITE_KEY = 'REEMPLAZAR_SITE_KEY';
   var CONFIG = {
     pixelVersion: '2.0.0',
-    collectorUrl: 'https://px.hotsale.com.co/v1/collect',
+    collectorUrl: 'https://script.google.com/macros/s/REEMPLAZAR_ID_DEL_SCRIPT/exec',
     maxTouchAgeDays: 30,
     hsSources: ['hotsale'],
     referrerDomains: ['hotsale.com.co', 'www.hotsale.com.co', 'hotsale.co', 'www.hotsale.co']
@@ -343,11 +342,10 @@
     return age > maxDays * DAY_MS || age < -DAY_MS;
   }
 
-  function basePayload(event, storeDomain, touch, nowMs, isTest, siteKey, cfg, order) {
+  function basePayload(event, storeDomain, touch, nowMs, isTest, cfg, order) {
     var p = {
       v: 2,
       pixel_version: cfg.pixelVersion,
-      site_key: siteKey,
       event: event,
       store_domain: storeDomain
     };
@@ -372,12 +370,12 @@
     return p;
   }
 
-  function touchPayload(touch, storeDomain, nowMs, siteKey, cfg) {
-    return basePayload('touch', storeDomain, touch, nowMs, touch.is_test, siteKey, cfg, null);
+  function touchPayload(touch, storeDomain, nowMs, cfg) {
+    return basePayload('touch', storeDomain, touch, nowMs, touch.is_test, cfg, null);
   }
 
-  function purchasePayload(touch, order, storeDomain, nowMs, isTest, siteKey, cfg) {
-    return basePayload('purchase', storeDomain, touch, nowMs, isTest, siteKey, cfg, order);
+  function purchasePayload(touch, order, storeDomain, nowMs, isTest, cfg) {
+    return basePayload('purchase', storeDomain, touch, nowMs, isTest, cfg, order);
   }
 
   // Double-send guard for the thank-you page. `previous` is the status stored
@@ -451,7 +449,7 @@
     storageSet('sessionStorage', sentKey, order.order_status);
 
     var isTest = touch.is_test === true || readParams(location.search, ['hs_test']).hs_test === '1';
-    send(CONFIG.collectorUrl, purchasePayload(touch, order, location.hostname, now, isTest, SITE_KEY, CONFIG));
+    send(CONFIG.collectorUrl, purchasePayload(touch, order, location.hostname, now, isTest, CONFIG));
 
     if (order.order_id) forgetTouch();
   } catch (e) {}

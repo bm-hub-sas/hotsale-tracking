@@ -13,9 +13,9 @@ const hit = classify('?utm_source=hotsale&utm_medium=referral&utm_campaign=hs26o
 const touch = t.buildTouch(hit, NOW, 'tienda.com');
 
 // The payload contract (docs/contrato-collector.md), in order.
-const TOUCH_FIELDS = ['v', 'pixel_version', 'site_key', 'event', 'store_domain', 'signal', 'landed_at', 'sent_at', 'is_test',
+const TOUCH_FIELDS = ['v', 'pixel_version', 'event', 'store_domain', 'signal', 'landed_at', 'sent_at', 'is_test',
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
-const PURCHASE_FIELDS = ['v', 'pixel_version', 'site_key', 'event', 'store_domain',
+const PURCHASE_FIELDS = ['v', 'pixel_version', 'event', 'store_domain',
   'order_id', 'order_value', 'order_value_raw', 'currency', 'order_status', 'value_source',
   'signal', 'landed_at', 'sent_at', 'is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
 
@@ -61,7 +61,7 @@ test('isExpired: older than maxDays, or more than a day in the future', () => {
 });
 
 test('touch payload has exactly the contract fields, in order', () => {
-  const p = t.touchPayload(touch, 'tienda.com', NOW + 1000, 'hs_pk_test', cfg);
+  const p = t.touchPayload(touch, 'tienda.com', NOW + 1000, cfg);
   assert.deepEqual(Object.keys(p), TOUCH_FIELDS);
   assert.equal(p.event, 'touch');
   assert.equal(p.v, 2);
@@ -70,7 +70,7 @@ test('touch payload has exactly the contract fields, in order', () => {
 
 test('purchase payload has exactly the contract fields, in order', () => {
   const order = extractOrder([{ event: 'purchase', ecommerce: { transaction_id: '12345', value: 250000, currency: 'COP' } }]);
-  const p = t.purchasePayload(touch, order, 'tienda.com', NOW, false, 'hs_pk_test', cfg);
+  const p = t.purchasePayload(touch, order, 'tienda.com', NOW, false, cfg);
   assert.deepEqual(Object.keys(p), PURCHASE_FIELDS);
   assert.equal(p.event, 'purchase');
   assert.equal(p.order_status, 'complete');
@@ -80,8 +80,8 @@ test('purchase payload has exactly the contract fields, in order', () => {
 
 test('is_test is a strict boolean', () => {
   const order = extractOrder([]);
-  assert.equal(t.purchasePayload(touch, order, 'x', NOW, 'yes', 'k', cfg).is_test, false);
-  assert.equal(t.purchasePayload(touch, order, 'x', NOW, true, 'k', cfg).is_test, true);
+  assert.equal(t.purchasePayload(touch, order, 'x', NOW, 'yes', cfg).is_test, false);
+  assert.equal(t.purchasePayload(touch, order, 'x', NOW, true, cfg).is_test, true);
 });
 
 test('shouldSend: never twice with the same status; incomplete may upgrade once', () => {

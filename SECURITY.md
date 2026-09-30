@@ -20,8 +20,8 @@ Si la corrección cambia el código que los aliados tienen instalado, se publica
 
 ## Alcance
 
-- El código de este repositorio: `src/`, `scripts/` y `dist/` (lo que se instala en las tiendas).
-- El collector `px.hotsale.com.co`, operado por UpSell/BM-Hub, que no está en este repositorio. Los reportes sobre el collector se reciben en el mismo contacto.
+- El código de este repositorio: `src/`, `scripts/`, `collector/` y `dist/` (lo que se instala en las tiendas).
+- El collector ([`collector/apps-script.gs`](collector/apps-script.gs)) y la hoja de cálculo donde guarda los datos, operados por UpSell/BM-Hub.
 
 ## Versiones con soporte
 
@@ -32,5 +32,5 @@ Si la corrección cambia el código que los aliados tienen instalado, se publica
 
 ## No se consideran vulnerabilidades
 
-- Que el `site_key` sea visible en el código de la tienda. Es público por diseño y no es una contraseña.
-- Que cualquiera pueda enviar al collector un evento con un `site_key` válido. Toda medición desde el navegador tiene esa limitación. El collector la mitiga validando el `Origin` y el dominio, limitando peticiones y deduplicando (ver [docs/contrato-collector.md](docs/contrato-collector.md)).
+- Que la URL del collector sea visible en el código de la tienda. Es necesaria para enviar los datos y es la misma para todos los aliados.
+- Que cualquiera pueda enviar al collector un evento con un dominio registrado. Toda medición desde el navegador tiene esa limitación. El collector la mitiga validando el formato y el dominio, limitando los envíos por minuto, deduplicando y marcando pedidos sospechosos. Las cifras se concilian con cada aliado antes de reportarlas (ver [docs/contrato-collector.md](docs/contrato-collector.md)).

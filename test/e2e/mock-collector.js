@@ -14,17 +14,15 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { TARGETS, CONFIG, render, SITE_KEY_PLACEHOLDER } = require('../../scripts/build.js');
+const { TARGETS, CONFIG, render } = require('../../scripts/build.js');
 
 const PAGES = path.join(__dirname, 'pages');
-const TEST_SITE_KEY = 'hs_pk_e2e';
-
-// The snippets as an ally would receive them from MarOS: site_key filled in.
+// The snippets exactly as in dist/, pointed at the mock collector.
 function buildSnippets(collectorUrl, overrides = {}) {
   const config = { ...CONFIG, COLLECTOR_URL: collectorUrl, ...overrides };
   const out = {};
   for (const t of TARGETS.filter((x) => x.html)) {
-    out[t.src.replace(/\.js$/, '')] = render(t, config).replace(`'${SITE_KEY_PLACEHOLDER}'`, `'${TEST_SITE_KEY}'`);
+    out[t.src.replace(/\.js$/, '')] = render(t, config);
   }
   return out;
 }
@@ -118,7 +116,7 @@ function startServer({ port = 0, listenHost = '127.0.0.1', collectorHost = 'px.h
   });
 }
 
-module.exports = { startServer, buildSnippets, TEST_SITE_KEY };
+module.exports = { startServer, buildSnippets };
 
 if (require.main === module) {
   const port = Number(process.argv[2]) || 8787;

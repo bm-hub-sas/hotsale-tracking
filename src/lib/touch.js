@@ -77,11 +77,10 @@ function isExpired(touch, nowMs, maxDays) {
   return age > maxDays * DAY_MS || age < -DAY_MS;
 }
 
-function basePayload(event, storeDomain, touch, nowMs, isTest, siteKey, cfg, order) {
+function basePayload(event, storeDomain, touch, nowMs, isTest, cfg, order) {
   var p = {
     v: 2,
     pixel_version: cfg.pixelVersion,
-    site_key: siteKey,
     event: event,
     store_domain: storeDomain
   };
@@ -106,12 +105,12 @@ function basePayload(event, storeDomain, touch, nowMs, isTest, siteKey, cfg, ord
   return p;
 }
 
-function touchPayload(touch, storeDomain, nowMs, siteKey, cfg) {
-  return basePayload('touch', storeDomain, touch, nowMs, touch.is_test, siteKey, cfg, null);
+function touchPayload(touch, storeDomain, nowMs, cfg) {
+  return basePayload('touch', storeDomain, touch, nowMs, touch.is_test, cfg, null);
 }
 
-function purchasePayload(touch, order, storeDomain, nowMs, isTest, siteKey, cfg) {
-  return basePayload('purchase', storeDomain, touch, nowMs, isTest, siteKey, cfg, order);
+function purchasePayload(touch, order, storeDomain, nowMs, isTest, cfg) {
+  return basePayload('purchase', storeDomain, touch, nowMs, isTest, cfg, order);
 }
 
 // Double-send guard for the thank-you page. `previous` is the status stored

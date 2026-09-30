@@ -2,7 +2,7 @@
 
 Sirve para cualquier plataforma que tenga GTM en todas sus páginas, incluida la página de confirmación de compra. Si no usa GTM, vaya a [Sin GTM](#sin-gtm).
 
-Necesita los dos archivos que le envió Hot Sale, ya con su `site_key`:
+Necesita estos dos archivos, que son los mismos para todas las tiendas:
 
 - `pixel1-todas-las-paginas.html`
 - `pixel2-gtm-confirmacion.html`
@@ -66,7 +66,7 @@ Ambos archivos ya incluyen las etiquetas `<script>`. Si su plataforma no tiene `
 
 ## Content-Security-Policy
 
-Si su sitio usa CSP, agregue `https://px.hotsale.com.co` a `connect-src`. Las etiquetas de HTML personalizado de GTM también necesitan que su CSP permita los scripts de GTM, normalmente con un *nonce*.
+Si su sitio usa CSP, agregue `https://script.google.com` y `https://script.googleusercontent.com` a `connect-src`. Las etiquetas de HTML personalizado de GTM también necesitan que su CSP permita los scripts de GTM, normalmente con un *nonce*.
 
 ## Verificar
 

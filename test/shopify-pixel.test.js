@@ -9,10 +9,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { TARGETS, render } = require('../scripts/build.js');
+const { TARGETS, render, CONFIG } = require('../scripts/build.js');
 
 const target = TARGETS.find((t) => t.src === 'pixel2-shopify.js');
-const CODE = render(target).replace("'REEMPLAZAR_SITE_KEY'", "'hs_pk_shop'");
+const CODE = render(target);
 const DAY = 86400000;
 const T0 = Date.parse('2026-10-19T14:00:00.000Z');
 
@@ -102,9 +102,9 @@ test('referrer-only landing, then purchase: touch + complete purchase, no person
   assert.equal(purchase.value_source, 'shopify.totalPrice');
   assert.equal(purchase.order_status, 'complete');
   assert.equal(purchase.signal, 'referrer_only');
-  assert.equal(purchase.site_key, 'hs_pk_shop');
+  assert.equal(purchase.site_key, undefined);
   assert.equal(purchase.landed_at, touch.landed_at);
-  assert.ok(shared.sent.every((s) => s.via === 'beacon' && s.url === 'https://px.hotsale.com.co/v1/collect'));
+  assert.ok(shared.sent.every((s) => s.via === 'beacon' && s.url === CONFIG.COLLECTOR_URL));
   assert.equal(shared.local.has('hotsale_touch_v2'), false, 'touch deleted after a complete order');
 
   const wire = JSON.stringify(shared.sent);

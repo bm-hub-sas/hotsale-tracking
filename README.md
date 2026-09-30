@@ -19,7 +19,6 @@ El píxel hace dos tipos de envío:
 |---|---|---|:-:|:-:|
 | `v` | `2` | Versión del formato del envío | ✓ | ✓ |
 | `pixel_version` | `"2.0.0"` | Versión del píxel instalado | ✓ | ✓ |
-| `site_key` | `"hs_pk_xxxxxxxx"` | Identificador de su tienda, emitido por Hot Sale (MarOS). Es público, no es una contraseña | ✓ | ✓ |
 | `event` | `"purchase"` | `touch` o `purchase` | ✓ | ✓ |
 | `store_domain` | `"tienda.com"` | Dominio de la página donde corre el píxel | ✓ | ✓ |
 | `order_id` | `"12345"` | Identificador del pedido que expone su página. En Shopify es el ID interno del pedido, no el número `#1001`. Va vacío si su página no lo expone | | ✓ |
@@ -38,7 +37,7 @@ Este es un envío `purchase` completo:
 
 ```json
 {
-  "v": 2, "pixel_version": "2.0.0", "site_key": "hs_pk_xxxxxxxx", "event": "purchase",
+  "v": 2, "pixel_version": "2.0.0", "event": "purchase",
   "store_domain": "tienda.com", "order_id": "12345", "order_value": 250000, "order_value_raw": "250000",
   "currency": "COP", "order_status": "complete", "value_source": "ecommerce.value",
   "signal": "referrer+utm", "landed_at": "2026-10-19T14:03:22.000Z", "sent_at": "2026-10-19T14:21:05.000Z",
@@ -60,12 +59,13 @@ El píxel también borra la clave `hotsale_data` que dejaba la versión de marzo
 
 ## 2. A dónde van
 
-- **Destino único:** `https://px.hotsale.com.co/v1/collect` `[DEFINIR: el dominio requiere un registro DNS de la CCCE]`. Es el único dominio al que el píxel se conecta.
-- **Quién lo opera:** UpSell/BM-Hub, por encargo de la CCCE. Los datos se guardan en BigQuery (plataforma MarOS).
+- **Destino único:** una aplicación web de Google Apps Script (`https://script.google.com/macros/s/…/exec`). Es el único servidor al que el píxel se conecta. Su código está en [`collector/apps-script.gs`](collector/apps-script.gs).
+- **Dónde se guardan:** en una hoja de cálculo privada de Google de UpSell/BM-Hub, que opera la medición por encargo de la CCCE. La hoja no se comparte; los reportes se hacen en Looker Studio.
 - **Retención:** `[DEFINIR con la CCCE]`.
-- **Quién puede verlos:** usted (los datos de su tienda), la CCCE y UpSell/BM-Hub como operador.
-- **IP y navegador:** como en cualquier petición web, el servidor recibe la dirección IP y el user-agent en la conexión. El píxel no los lee ni los incluye en el envío. `[DEFINIR con MarOS: si el collector los guarda y por cuánto tiempo]`.
-- **Formato:** la petición es un `POST` con cuerpo `text/plain` (JSON). No dispara preflight CORS. El contrato completo está en [docs/contrato-collector.md](docs/contrato-collector.md).
+- **Quién puede verlos:** usted (el reporte de su tienda), la CCCE y UpSell/BM-Hub.
+- **IP y navegador:** Google recibe la conexión, como en cualquier servicio web, pero el script no tiene acceso a la IP ni a los encabezados de la petición. Solo recibe el contenido del envío.
+- **Qué rechaza el collector:** envíos de dominios que no pertenecen a un aliado registrado, con un formato distinto al de esta versión, de más de 8 KB, o más de 120 por minuto de una misma tienda. Los pedidos sospechosos quedan marcados para revisión. El detalle está en [docs/contrato-collector.md](docs/contrato-collector.md).
+- **Formato:** la petición es un `POST` con cuerpo `text/plain` (JSON). No dispara preflight CORS.
 
 ## 3. Regla de atribución
 
@@ -84,7 +84,7 @@ El campo `signal` indica qué condición se cumplió: `referrer+utm` (A y B), `r
 - Una visita que no es de Hot Sale (Google, sus propias campañas, tráfico directo) **no** borra el toque.
 - Cada toque se asocia a un solo pedido. Después de reportar un pedido con número, esté completo o no, el toque se borra.
 - El píxel no reporta compras cuyo toque tenga más de 30 días.
-- **Ventana del evento:** el collector cuenta las compras hasta `[N días después del cierre del evento — DEFINIR con la CCCE]`. El evento va del 19 al 23 de octubre de 2026, con extensión el 24 y 25 de octubre.
+- **Ventana del evento:** el reporte cuenta las compras hasta `[N días después del cierre del evento — DEFINIR con la CCCE]`. El evento va del 19 al 23 de octubre de 2026, con extensión el 24 y 25 de octubre.
 - Los envíos con `is_test: true` no cuentan en los reportes.
 
 > **Para su equipo de marketing:** no use `utm_source=hotsale` en sus propias campañas, porque esas visitas contarían como de Hot Sale.
@@ -109,7 +109,7 @@ El campo `signal` indica qué condición se cumplió: `referrer+utm` (A y B), `r
 
 Estas afirmaciones se comprueban de forma automática:
 
-- **Compilación** ([`scripts/build.js`](scripts/build.js)). Falla si un snippet contiene `fbq(`, `gtag(`, `googletagmanager`, `connect.facebook.net`, `script.google.com`, `document.cookie`, `browser.cookie`, `createElement`, `appendChild`, `innerHTML`, `dataLayer.push`, `setTimeout`, `setInterval`, `addEventListener` o `XMLHttpRequest`. También falla si contiene cualquier URL distinta del collector (salvo la de este repositorio, en los comentarios) o nombres de datos personales (`email`, `phone`, `address`…).
+- **Compilación** ([`scripts/build.js`](scripts/build.js)). Falla si un snippet contiene `fbq(`, `gtag(`, `googletagmanager`, `connect.facebook.net`, la URL del collector de marzo, `document.cookie`, `browser.cookie`, `createElement`, `appendChild`, `innerHTML`, `dataLayer.push`, `setTimeout`, `setInterval`, `addEventListener` o `XMLHttpRequest`. También falla si contiene cualquier URL distinta del collector (salvo la de este repositorio, en los comentarios) o nombres de datos personales (`email`, `phone`, `address`…).
 - **Pruebas e2e** ([`test/e2e/`](test/e2e/)). Abren los snippets de GTM/HTML en Chromium, sobre páginas con un píxel de Meta y un `gtag` falsos del aliado, y verifican que:
   - esas funciones no reciben ninguna llamada;
   - no aparecen variables globales nuevas;
@@ -119,7 +119,7 @@ Estas afirmaciones se comprueban de forma automática:
 
 ## 5. Instalación
 
-Hot Sale le envía los archivos con su `site_key` ya incluido. Si tiene instalada la versión de marzo de 2026 (etiquetas "Hotsale UTM Capture" y "Hotsale Conversion Pixel", o código en `theme.liquid`), **elimínela antes** de instalar esta.
+El código es el mismo para todas las tiendas: son los archivos de [`dist/`](dist/). Si tiene instalada la versión de marzo de 2026 (etiquetas "Hotsale UTM Capture" y "Hotsale Conversion Pixel", o código en `theme.liquid`), **elimínela antes** de instalar esta.
 
 | Plataforma | Qué se instala | Guía |
 |---|---|---|
@@ -129,11 +129,11 @@ Hot Sale le envía los archivos con su `site_key` ya incluido. Si tiene instalad
 | WooCommerce | Por medio de GTM o de `functions.php` | [docs/instalacion-woocommerce.md](docs/instalacion-woocommerce.md) |
 | Otra plataforma, sin GTM | Pixel 1 en la plantilla principal y Pixel 2 en la página de confirmación | [docs/instalacion-gtm.md#sin-gtm](docs/instalacion-gtm.md#sin-gtm) |
 
-**Si su sitio usa Content-Security-Policy**, agregue `https://px.hotsale.com.co` a `connect-src`. Si no lo hace, el navegador bloquea el envío.
+**Si su sitio usa Content-Security-Policy**, agregue `https://script.google.com` y `https://script.googleusercontent.com` a `connect-src`. Si no lo hace, el navegador bloquea el envío.
 
 ## 6. Cómo verificar la instalación
 
-Visite su tienda con `?utm_source=hotsale&hs_test=1`, haga una compra de prueba y revise en las herramientas de desarrollo del navegador las dos peticiones a `px.hotsale.com.co`. Los envíos de prueba no cuentan en los reportes. El paso a paso está en [docs/pruebas.md](docs/pruebas.md).
+Visite su tienda con `?utm_source=hotsale&hs_test=1`, haga una compra de prueba y revise en las herramientas de desarrollo del navegador las dos peticiones a `script.google.com`. Los envíos de prueba no cuentan en los reportes. El paso a paso está en [docs/pruebas.md](docs/pruebas.md).
 
 ## 7. Cómo desinstalar
 
@@ -147,24 +147,17 @@ Las claves que queden en los navegadores de sus visitantes (§1) ya no se leen n
 
 - Cada snippet indica su versión en la primera línea y en `CONFIG.pixelVersion`. Cada envío incluye `pixel_version`.
 - El código vive en su sitio: no se descarga de ningún servidor, así que no cambia a menos que usted pegue una versión nueva.
-- [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt) tiene el SHA-256 de cada plantilla (con `REEMPLAZAR_SITE_KEY` en lugar de su `site_key`).
+- Todos los aliados reciben exactamente los mismos archivos. [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt) tiene el SHA-256 de cada uno.
 
-Para verificar las plantillas en una copia del repositorio:
+Para verificar el archivo que recibió, calcule su SHA-256 y compárelo con `dist/SHA256SUMS.txt`:
 
 ```sh
-cd dist && shasum -a 256 -c SHA256SUMS.txt        # macOS / Linux
+shasum -a 256 pixel2-gtm-confirmacion.html                          # macOS / Linux
+cd dist && shasum -a 256 -c SHA256SUMS.txt                          # todas, en una copia del repositorio
 ```
 
 ```powershell
-Get-FileHash .\dist\pixel2-gtm-confirmacion.html -Algorithm SHA256   # Windows
-```
-
-Para verificar el archivo que recibió, que ya trae su `site_key`, compárelo con la plantilla. La única diferencia debe ser la línea `SITE_KEY`:
-
-```sh
-diff su-archivo.html dist/pixel2-gtm-confirmacion.html
-# o bien: vuelva a poner el marcador y calcule el hash
-sed "s/'hs_pk_[A-Za-z0-9_]*'/'REEMPLAZAR_SITE_KEY'/" su-archivo.html | shasum -a 256
+Get-FileHash .\pixel2-gtm-confirmacion.html -Algorithm SHA256        # Windows
 ```
 
 ## 9. Contacto
@@ -188,8 +181,9 @@ src/pixel1-capture.js      captura (ES5)
 src/pixel2-gtm.js          conversión para GTM/HTML (ES5)
 src/pixel2-shopify.js      píxel personalizado de Shopify (captura y conversión)
 src/lib/                   lógica pura compartida; build.js la incluye en cada snippet
+collector/apps-script.gs   el collector (Google Apps Script + hoja de cálculo)
 scripts/build.js           configuración, compilación y verificaciones
-test/                      pruebas unitarias, arnés de Shopify y e2e
+test/                      pruebas unitarias, arnés de Shopify, collector y e2e
 dist/                      lo que se pega en las tiendas (generado, versionado)
 docs/                      guías de instalación, pruebas y contrato del collector
 iframe-reporte-marca       inserción del reporte de Looker Studio para marcas (no es parte del píxel)

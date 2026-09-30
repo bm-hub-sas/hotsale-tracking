@@ -10,8 +10,9 @@
 // ── Config ──────────────────────────────────────────────────────────────────
 const CONFIG = {
   PIXEL_VERSION: '2.0.0',
-  // [DEFINIR] Requires a DNS record from the CCCE. Placeholder until then.
-  COLLECTOR_URL: 'https://px.hotsale.com.co/v1/collect',
+  // The Google Apps Script web app (collector/apps-script.gs). Replace with the
+  // /exec URL of the NEW deployment; never the March one.
+  COLLECTOR_URL: 'https://script.google.com/macros/s/REEMPLAZAR_ID_DEL_SCRIPT/exec',
   // Pixel 2 ignores (and deletes) touches older than this. The attribution
   // window itself is applied by the collector using landed_at.
   MAX_TOUCH_AGE_DAYS: 30,
@@ -33,7 +34,8 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const DIST = path.join(ROOT, 'dist');
 const REPO_URL = 'https://github.com/bm-hub-sas/hotsale-tracking';
-const SITE_KEY_PLACEHOLDER = 'REEMPLAZAR_SITE_KEY';
+// The v1 (March 2026) Apps Script deployment: public, unauthenticated, retired.
+const V1_ENDPOINT_ID = 'AKfycbydRbTiMXNk8';
 
 const TARGETS = [
   { src: 'pixel1-capture.js', out: 'pixel1-todas-las-paginas.html', es5: true, html: true,
@@ -46,7 +48,7 @@ const TARGETS = [
 
 // Strings no snippet may contain, comments included.
 const FORBIDDEN = [
-  'script.google.com', 'googletagmanager', 'connect.facebook.net', 'fbevents',
+  V1_ENDPOINT_ID, 'googletagmanager', 'connect.facebook.net', 'fbevents',
   'fbq(', 'gtag(', 'localStorage.clear', 'sessionStorage.clear',
   'document.cookie', 'browser.cookie',
   'createElement', 'appendChild', 'insertBefore', 'innerHTML', 'outerHTML', 'document.write',
@@ -116,7 +118,7 @@ function render(target, config = CONFIG) {
   const header = [
     `Hot Sale Pixel v${config.PIXEL_VERSION} · ${target.title}`,
     `Código fuente, documentación y SHA-256: ${REPO_URL}`,
-    `Generado por scripts/build.js desde src/${target.src}. Lo único que cambia entre aliados es SITE_KEY.`,
+    `Generado por scripts/build.js desde src/${target.src}. Es el mismo archivo para todos los aliados.`,
   ];
   const js = renderJs(target, config);
   if (!target.html) return header.map((l) => `// ${l}`).join('\n') + '\n\n' + js;
@@ -151,7 +153,8 @@ function checkSnippet(target, text, config = CONFIG) {
   for (const u of urls) {
     if (u !== config.COLLECTOR_URL && u !== REPO_URL) errors.push(`contains a URL other than the collector: ${u}`);
   }
-  if (!text.includes(`'${SITE_KEY_PLACEHOLDER}'`)) errors.push('SITE_KEY placeholder missing');
+  if (!/^https:\/\/[^\s'"\\]+$/.test(config.COLLECTOR_URL)) errors.push('COLLECTOR_URL must be an https URL');
+  if (text.split(`'${config.COLLECTOR_URL}'`).length !== 2) errors.push('the collector URL must appear exactly once');
   if (target.html && text.includes('{{')) errors.push('contains "{{", which GTM treats as a variable');
 
   const js = scriptBody(target, text);
@@ -196,13 +199,16 @@ function build({ check = false, config = CONFIG, outDir = DIST } = {}) {
   return outputs;
 }
 
-module.exports = { CONFIG, TARGETS, FORBIDDEN, render, checkSnippet, build, sha256, prepareLib, SITE_KEY_PLACEHOLDER };
+module.exports = { CONFIG, TARGETS, FORBIDDEN, render, checkSnippet, build, sha256, prepareLib, V1_ENDPOINT_ID };
 
 if (require.main === module) {
   const check = process.argv.includes('--check');
   try {
     const outputs = build({ check });
     process.stdout.write(check ? 'dist/ is up to date and passes all checks.\n' : `Wrote dist/ (v${CONFIG.PIXEL_VERSION}):\n`);
+    if (CONFIG.COLLECTOR_URL.includes('REEMPLAZAR')) {
+      process.stdout.write('WARNING: COLLECTOR_URL is still the placeholder. Do not send these files to allies.\n');
+    }
     if (!check) process.stdout.write(outputs['SHA256SUMS.txt']);
   } catch (e) {
     process.stderr.write(e.message + '\n');

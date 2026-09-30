@@ -17,7 +17,6 @@
 (function () {
   'use strict';
 
-  var SITE_KEY = 'REEMPLAZAR_SITE_KEY';
   /* @config */
 
   /* @inline lib/classify.js */
@@ -48,7 +47,7 @@
     storageSet('sessionStorage', sentKey, order.order_status);
 
     var isTest = touch.is_test === true || readParams(location.search, ['hs_test']).hs_test === '1';
-    send(CONFIG.collectorUrl, purchasePayload(touch, order, location.hostname, now, isTest, SITE_KEY, CONFIG));
+    send(CONFIG.collectorUrl, purchasePayload(touch, order, location.hostname, now, isTest, CONFIG));
 
     if (order.order_id) forgetTouch();
   } catch (e) {}

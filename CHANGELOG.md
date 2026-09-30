@@ -23,7 +23,7 @@ Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la vers
 - **Un toque, un pedido.** Después de reportar un pedido con número, el toque se borra. El mismo enlace repetido antes de 30 minutos (recarga o dos pestañas) cuenta como una sola llegada.
 - **La regla de atribución es exacta:** el referrer es un dominio de Hot Sale o `utm_source` es exactamente `hotsale`. Se eliminó la búsqueda de 26 palabras clave dentro de cualquier UTM (`ccce`, `epsilon`, errores de escritura, etc.), que atribuía a Hot Sale los boletines y campañas propios del aliado.
 - **Se toma el pedido más reciente del `dataLayer`**, no el primero. Además, se reconocen más formatos (GA4, gtag.js, Universal Analytics estándar y enhanced ecommerce, VTEX), y se puede usar `window.hotsaleOrder` si la plataforma no tiene `dataLayer`.
-- Los valores como `"250.000"`, que pueden ser 250 o 250000, ya no se interpretan a ciegas. Se marcan `incomplete` y se envía el texto original para que lo resuelva el collector.
+- Los valores como `"250.000"`, que pueden ser 250 o 250000, ya no se interpretan a ciegas. Se marcan `incomplete` y se envía el texto original para resolverlo en el reporte.
 - Cada envío incluye `signal`, `pixel_version` e `is_test`. Las compras incluyen además `order_status` y `value_source`. `hs_test=1` permite probar la instalación sin afectar los reportes.
 
 ### Documentación
@@ -33,8 +33,11 @@ Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la vers
 
 ### Seguridad
 
-- Los snippets ya no apuntan al endpoint de Google Apps Script, que aceptaba envíos sin autenticación para cualquier tienda. El collector nuevo (MarOS) validará un `site_key` por aliado contra el `Origin` y el dominio registrado.
-- Los snippets están versionados y se publican con SHA-256 (`dist/SHA256SUMS.txt`).
+- **Nueva dirección del collector.** La de marzo aceptaba cualquier envío y quedó publicada; se desactiva.
+- **El collector valida cada envío.** Solo acepta el formato de esta versión y dominios de aliados registrados, y limita los envíos por minuto por tienda. Los rechazos quedan registrados con el motivo.
+- **Los datos no se pueden convertir en fórmulas.** Todo texto que llega, como los UTM, se guarda como texto literal en la hoja.
+- **Los pedidos sospechosos se marcan** para revisión: sin llegada registrada, con una llegada ya usada por otro pedido o con un valor fuera de lo normal.
+- **Es el mismo archivo para todos los aliados**, versionado y con SHA-256 (`dist/SHA256SUMS.txt`), así que cada aliado puede comprobar que el suyo no fue modificado.
 - Se agregó [SECURITY.md](SECURITY.md).
 
 ### Para quien tenía la versión 1
