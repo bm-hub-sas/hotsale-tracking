@@ -1,0 +1,21 @@
+{
+  "name": "hotsale-tracking",
+  "version": "2.0.1",
+  "private": true,
+  "description": "Píxel de atribución de ventas de aliados de Hot Sale (hotsale.com.co).",
+  "license": "MIT",
+  "repository": "github:bm-hub-sas/hotsale-tracking",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node --test test/*.test.js && node scripts/build.js --check",
+    "test:e2e": "node --test test/e2e/e2e.test.js",
+    "mock-collector": "node test/e2e/mock-collector.js"
+  },
+  "devDependencies": {
+    "acorn": "8.15.0",
+    "playwright": "1.63.0"
+  }
+}
