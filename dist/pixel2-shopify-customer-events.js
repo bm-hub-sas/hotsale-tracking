@@ -2,22 +2,25 @@
 // Código fuente, documentación y SHA-256: https://github.com/bm-hub-sas/hotsale-tracking
 // Generado por scripts/build.js desde src/pixel2-shopify.js. Es el mismo archivo para todos los aliados.
 
-// Shopify custom pixel (Settings -> Customer events -> Add custom pixel).
-// Source of truth: scripts/build.js inlines the libs and the config and writes
-// dist/pixel2-shopify-customer-events.js, which is what allies paste.
+// Píxel personalizado de Shopify (Configuración -> Eventos de cliente ->
+// Agregar píxel personalizado).
+// Fuente: scripts/build.js incluye las librerías y la configuración y escribe
+// dist/pixel2-shopify-customer-events.js, que es lo que pegan los aliados.
 //
-// On Shopify this one snippet does both jobs, so nothing goes in theme.liquid:
-//   page_viewed        -> same capture logic as Pixel 1 (lib/classify.js)
-//   checkout_completed -> same reporting logic as Pixel 2 (lib/touch.js)
+// En Shopify este único snippet hace los dos trabajos, así que no va nada en
+// theme.liquid:
+//   page_viewed        -> la misma lógica de captura del Pixel 1 (lib/classify.js)
+//   checkout_completed -> la misma lógica de reporte del Pixel 2 (lib/touch.js)
 //
-// Custom pixels run in a sandboxed iframe (Shopify "lax" sandbox, no
-// allow-same-origin). Storage is reached only through Shopify's async
-// browser.sessionStorage / browser.localStorage, which run in the top frame:
-// the store's own storage, where the touch lives. window.localStorage inside
-// the sandbox is a snapshot and is not used.
-// The request goes through browser.sendBeacon, which Shopify runs in the top
-// frame. Shopify marks it deprecated; if it is unavailable, fetch is used.
-// Order id, value and currency are the only order fields read.
+// Los píxeles personalizados se ejecutan en un iframe aislado (sandbox "lax"
+// de Shopify, sin allow-same-origin). El almacenamiento solo se alcanza con
+// browser.sessionStorage / browser.localStorage de Shopify, que son asíncronos
+// y se ejecutan en el marco superior: el almacenamiento de la propia tienda,
+// donde vive el toque. window.localStorage dentro del sandbox es una copia
+// instantánea y no se usa.
+// La petición sale por browser.sendBeacon, que Shopify ejecuta en el marco
+// superior. Shopify lo marca como obsoleto; si no está disponible, se usa fetch.
+// El número, el valor y la moneda son los únicos campos del pedido que se leen.
 
 const CONFIG = {
   pixelVersion: '2.0.1',
@@ -28,15 +31,16 @@ const CONFIG = {
   referrerDomains: ['hotsale.com.co', 'www.hotsale.com.co', 'hotsale.co', 'www.hotsale.co']
 };
 
-// Decides whether a page view is a Hot Sale touch.
+// Decide si una visita es un toque de Hot Sale.
 //
-// Rule (README, "Regla de atribución"):
-//   A: the referrer hostname is exactly one of cfg.referrerDomains, or
-//   B: utm_source, trimmed and lower-cased, is exactly one of cfg.hsSources, or
-//   C: any UTM value, lower-cased, CONTAINS one of cfg.hsKeywords (the keyword
-//      list used in previous editions).
-// signal names what matched: 'referrer+utm' (A with B or C), 'referrer_only'
-// (A), 'utm_only' (B without A), 'keyword_only' (C alone).
+// Regla (README, "Regla de atribución"):
+//   A: el dominio del referrer es exactamente uno de cfg.referrerDomains, o
+//   B: utm_source, sin espacios y en minúsculas, es exactamente uno de
+//      cfg.hsSources, o
+//   C: algún valor de UTM, en minúsculas, CONTIENE una de cfg.hsKeywords (la
+//      lista de palabras clave de ediciones anteriores).
+// signal indica qué coincidió: 'referrer+utm' (A con B o C), 'referrer_only'
+// (A), 'utm_only' (B sin A), 'keyword_only' (solo C).
 
 var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
 var MAX_FIELD_LENGTH = 200;
@@ -54,8 +58,9 @@ function decodeParam(s) {
   }
 }
 
-// Returns the first value of each wanted key found in the query string of
-// `url` (a full URL or just "?a=b"). Only wanted keys are read.
+// Devuelve el primer valor de cada clave pedida que aparece en la cadena de
+// consulta de `url` (una URL completa o solo "?a=b"). Solo se leen las claves
+// pedidas.
 function readParams(url, wanted) {
   var out = {};
   var s = String(url || '');
@@ -77,8 +82,8 @@ function readParams(url, wanted) {
   return out;
 }
 
-// Hostname of an absolute URL, lower-cased, without userinfo, port or trailing
-// dot. "" if the string is not an absolute URL.
+// Dominio de una URL absoluta, en minúsculas, sin usuario, puerto ni punto
+// final. "" si el texto no es una URL absoluta.
 function hostOf(url) {
   var m = /^[a-z][a-z0-9+.\-]*:\/\/([^\/?#]*)/i.exec(String(url || ''));
   if (!m) return '';
@@ -96,7 +101,7 @@ function inList(value, list) {
   return false;
 }
 
-// True if any UTM value contains one of the keywords (both lower-case).
+// Verdadero si algún valor de UTM contiene una de las palabras clave (ambos en minúsculas).
 function hasKeyword(utms, keywords) {
   if (!keywords) return false;
   for (var i = 0; i < UTM_KEYS.length; i++) {
@@ -127,22 +132,22 @@ function classify(url, referrer, cfg) {
     : '';
   return { isHotsale: signal !== '', signal: signal, utms: utms, isTest: params.hs_test === '1' };
 }
-// Reads the order the page exposes; never reads anything about the buyer.
+// Lee el pedido que expone la página; nunca lee nada del comprador.
 //
-// Only three things are read from an order: its id, its value and its currency.
+// Del pedido solo se leen tres cosas: su número, su valor y su moneda.
 
 var MAX_ID_LENGTH = 100;
 var MAX_RAW_LENGTH = 50;
 
-// Strict amount parsing (documented in docs/contrato-collector.md):
-//   250000, "250000", "250000.00", "250000,5"  -> decimal separator, unambiguous
-//   "1.250.000", "1,250,000"                   -> repeated separator = thousands
-//   "1.250.000,00", "1,250,000.00"             -> both: the last one is decimal
-//   "250.000", "1,250"                         -> AMBIGUOUS: one separator followed
-//                                                 by exactly 3 digits. Returns 0.
-//   anything else (letters, negatives, empty)  -> 0
-// A return of 0 makes the order "incomplete"; the raw text travels in
-// order_value_raw so the collector can decide.
+// Lectura estricta de montos (documentada en docs/contrato-collector.md):
+//   250000, "250000", "250000.00", "250000,5"  -> separador decimal, sin ambigüedad
+//   "1.250.000", "1,250,000"                   -> separador repetido = miles
+//   "1.250.000,00", "1,250,000.00"             -> ambos: el último es el decimal
+//   "250.000", "1,250"                         -> AMBIGUO: un separador seguido de
+//                                                 exactamente 3 dígitos. Devuelve 0.
+//   cualquier otra cosa (letras, negativos, vacío) -> 0
+// Devolver 0 marca el pedido como "incomplete"; el texto original viaja en
+// order_value_raw para que el collector decida.
 function parseAmount(raw) {
   if (typeof raw === 'number') return isFinite(raw) && raw > 0 ? raw : 0;
   if (typeof raw !== 'string') return 0;
@@ -174,7 +179,7 @@ function parseAmount(raw) {
   return isFinite(n) && n > 0 ? n : 0;
 }
 
-// "1.250.000" with group "." -> true: first group 1-3 digits, the rest exactly 3.
+// "1.250.000" con grupo "." -> true: el primer grupo tiene 1-3 dígitos y el resto exactamente 3.
 function validGroups(s, group) {
   var g = s.split(group);
   if (!/^\d{1,3}$/.test(g[0])) return false;
@@ -200,8 +205,8 @@ function isEmpty(v) {
   return v == null || v === '';
 }
 
-// buildOrder(id, value, currency, source) -> the order fields of the payload.
-// order_status is 'complete' only with an order id AND a value > 0.
+// buildOrder(id, value, currency, source) -> los campos del pedido en el envío.
+// order_status es 'complete' solo con número de pedido Y un valor > 0.
 function buildOrder(id, value, currency, source) {
   var orderId = normalizeId(id);
   var orderValue = parseAmount(value);
@@ -216,33 +221,33 @@ function buildOrder(id, value, currency, source) {
   };
 }
 
-// One dataLayer entry -> { id, value, currency, source } or null. Each known
-// format is tried in turn; the first one with an id or a value is used, so an
-// entry without data in one format (e.g. an empty GA4 "ecommerce" object next
-// to top-level fields) does not hide another. If that format has no currency,
-// another format of the same entry may supply it: VTEX IO pushes
-// ecommerce.purchase without currencyCode, next to transactionCurrency.
-// Refunds are never read.
+// Una entrada del dataLayer -> { id, value, currency, source } o null. Se
+// prueba cada formato conocido en orden; se usa el primero que tenga número o
+// valor, así que una entrada sin datos en un formato (por ejemplo, un objeto
+// "ecommerce" de GA4 vacío junto a campos de nivel superior) no oculta otro.
+// Si ese formato no trae moneda, otro formato de la misma entrada puede
+// aportarla: VTEX IO envía ecommerce.purchase sin currencyCode, junto a
+// transactionCurrency. Los reembolsos nunca se leen.
 function readEntry(d) {
   if (!d || typeof d !== 'object' || d.event === 'refund') return null;
   var e = d.ecommerce && typeof d.ecommerce === 'object' ? d.ecommerce : null;
   var p = d[2];
   var candidates = [];
   if (d[0] === 'event' && d[1] === 'purchase' && p && typeof p === 'object') {
-    // gtag.js pushes the arguments object of each call: ['event', 'purchase', {...}]
+    // gtag.js agrega el objeto de argumentos de cada llamada: ['event', 'purchase', {...}]
     candidates.push({ id: p.transaction_id, value: p.value, currency: p.currency, source: 'gtag.value' });
   }
   if (e && (!isEmpty(e.transaction_id) || d.event === 'purchase')) {
-    // GA4 ecommerce
+    // GA4, comercio electrónico
     candidates.push({ id: e.transaction_id, value: e.value, currency: e.currency, source: 'ecommerce.value' });
   }
   if (e && e.purchase && e.purchase.actionField) {
-    // Universal Analytics enhanced ecommerce
+    // Universal Analytics, comercio electrónico mejorado
     var af = e.purchase.actionField;
     candidates.push({ id: af.id, value: af.revenue, currency: e.currencyCode, source: 'ecommerce.purchase.revenue' });
   }
   if (!isEmpty(d.transactionId)) {
-    // Universal Analytics standard ecommerce (also VTEX orderPlaced)
+    // Universal Analytics estándar (también VTEX orderPlaced)
     candidates.push({ id: d.transactionId, value: d.transactionTotal, currency: d.transactionCurrency, source: 'transactionTotal' });
   }
   if (d.event === 'purchase') {
@@ -259,12 +264,13 @@ function readEntry(d) {
   return null;
 }
 
-// extractOrder(dataLayer, override) -> order fields (see buildOrder).
-//   override: window.hotsaleOrder = { id, value, currency }, set by the ally
-//   when the platform has no dataLayer. Used when it has an id or a value.
-//   Otherwise, the order is the one named by the MOST RECENT dataLayer entry
-//   that has an id; its value comes from the most recent entry for that same
-//   id with a usable value (a later tag may repeat the id without the value).
+// extractOrder(dataLayer, override) -> campos del pedido (ver buildOrder).
+//   override: window.hotsaleOrder = { id, value, currency }, que define el
+//   aliado cuando la plataforma no tiene dataLayer. Se usa si trae número o valor.
+//   Si no, el pedido es el que nombra la entrada MÁS RECIENTE del dataLayer que
+//   tenga número; su valor sale de la entrada más reciente de ese mismo número
+//   con un valor utilizable (una etiqueta posterior puede repetir el número sin
+//   el valor).
 function extractOrder(dataLayer, override) {
   if (override && typeof override === 'object' && (!isEmpty(override.id) || !isEmpty(override.value))) {
     return buildOrder(override.id, override.value, override.currency, 'hotsaleOrder.value');
@@ -292,15 +298,15 @@ function extractOrder(dataLayer, override) {
   }
   return buildOrder(pick.id, pick.value, pick.currency, pick.source);
 }
-// The stored touch and the payloads sent to the collector. Field order of the
-// payloads follows docs/contrato-collector.md.
+// El toque guardado y los envíos al collector. El orden de los campos de los
+// envíos sigue docs/contrato-collector.md.
 
 var TOUCH_KEY = 'hotsale_touch_v2';
 var SENT_KEY_PREFIX = 'hotsale_sent_';
 var DAY_MS = 86400000;
 var REPEAT_WINDOW_MS = 30 * 60000;
 
-// The object stored under TOUCH_KEY.
+// El objeto que se guarda con TOUCH_KEY.
 function buildTouch(hit, nowMs, storeDomain) {
   return {
     v: 2,
@@ -317,8 +323,8 @@ function buildTouch(hit, nowMs, storeDomain) {
   };
 }
 
-// Stored JSON -> touch, or null if missing, malformed or not v2 (v1 leftovers
-// under the old key "hotsale_data" are never read).
+// JSON guardado -> toque, o null si falta, está dañado o no es v2 (los restos
+// de la v1 con la clave anterior, "hotsale_data", nunca se leen).
 function parseTouch(json) {
   if (!json) return null;
   var t;
@@ -331,10 +337,10 @@ function parseTouch(json) {
   return t;
 }
 
-// Two touches are the same if their UTMs and is_test match. landed_at,
-// signal and store_domain are ignored: a reload of the landing page, or a
-// store that carries the UTMs over to internal links (the referrer is then
-// the store itself, so the signal changes), is not a new touch.
+// Dos toques son el mismo si coinciden sus UTM e is_test. landed_at, signal y
+// store_domain se ignoran: una recarga de la página de llegada, o una tienda
+// que conserva los UTM en sus enlaces internos (entonces el referrer es la
+// propia tienda y la señal cambia), no es un toque nuevo.
 function sameTouch(a, b) {
   if (!a || !b) return false;
   var keys = ['is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
@@ -344,24 +350,25 @@ function sameTouch(a, b) {
   return true;
 }
 
-// True if `touch` repeats the stored touch: same UTMs and is_test, landed less
-// than 30 minutes ago (in this tab or another). A repeat is not reported
-// again and does not move landed_at, so a reload or the same link opened in
-// two tabs is one visit, while the same link followed days later is a new one.
+// Verdadero si `touch` repite el toque guardado: mismos UTM e is_test, y llegó
+// hace menos de 30 minutos (en esta pestaña o en otra). Una repetición no se
+// reporta de nuevo y no mueve landed_at, así que una recarga o el mismo enlace
+// abierto en dos pestañas es una sola visita, mientras que el mismo enlace
+// seguido días después es una nueva.
 function isRepeat(stored, touch, nowMs) {
   if (!sameTouch(stored, touch)) return false;
   var age = nowMs - Date.parse(stored.landed_at);
   return age >= 0 && age < REPEAT_WINDOW_MS;
 }
 
-// The most recent of two touches (either may be null).
+// El más reciente de dos toques (cualquiera puede ser null).
 function latestTouch(a, b) {
   if (!a) return b || null;
   if (!b) return a;
   return Date.parse(b.landed_at) > Date.parse(a.landed_at) ? b : a;
 }
 
-// Older than maxDays, or more than a day in the future (clock changed).
+// Con más de maxDays días, o con más de un día en el futuro (el reloj cambió).
 function isExpired(touch, nowMs, maxDays) {
   var age = nowMs - Date.parse(touch.landed_at);
   return age > maxDays * DAY_MS || age < -DAY_MS;
@@ -403,10 +410,10 @@ function purchasePayload(touch, order, storeDomain, nowMs, isTest, cfg) {
   return basePayload('purchase', storeDomain, touch, nowMs, isTest, cfg, order);
 }
 
-// Double-send guard for the thank-you page. `previous` is the status stored
-// under SENT_KEY_PREFIX + order_id in sessionStorage (or null). An incomplete
-// report may be followed by one complete report of the same order; nothing
-// is ever sent twice with the same status.
+// Protección contra el doble envío en la página de agradecimiento. `previous`
+// es el estado guardado con SENT_KEY_PREFIX + order_id en sessionStorage (o
+// null). Un reporte incompleto puede ir seguido de un reporte completo del
+// mismo pedido; nunca se envía dos veces con el mismo estado.
 function shouldSend(previous, status) {
   if (previous === 'complete') return false;
   if (previous === 'incomplete') return status === 'complete';
@@ -435,9 +442,10 @@ async function storageRemove(storage, key) {
   } catch (e) {}
 }
 
-// Some stores report order ids as "gid://shopify/OrderIdentity/5210499102",
-// others as "5210499102". Keep the number: the order ID in the admin URL of the
-// order (not the order name such as #1001, which the event does not carry).
+// Algunas tiendas reportan el número de pedido como
+// "gid://shopify/OrderIdentity/5210499102" y otras como "5210499102". Se
+// conserva el número: el ID del pedido en su URL del administrador (no el
+// nombre del pedido, como #1001, que el evento no trae).
 function shopifyOrderId(id) {
   const s = id == null ? '' : String(id);
   return s.indexOf('gid://') === 0 ? s.slice(s.lastIndexOf('/') + 1) : s;
@@ -448,8 +456,8 @@ async function forgetTouch() {
   await storageRemove(browser.localStorage, TOUCH_KEY);
 }
 
-// The only network request the pixel makes. The body is a string, so it is
-// sent as text/plain: a CORS "simple" request, no preflight.
+// La única petición de red que hace el píxel. El cuerpo es un texto, así que
+// se envía como text/plain: una petición CORS "simple", sin preflight.
 async function send(payload) {
   const body = JSON.stringify(payload);
   try {
@@ -460,8 +468,9 @@ async function send(payload) {
   } catch (e) {}
 }
 
-// Deletes a stored touch that is expired or unreadable, so no touch is kept
-// longer than CONFIG.maxTouchAgeDays past the visitor's next page view.
+// Borra un toque guardado que esté vencido o dañado, para que ningún toque se
+// conserve más de CONFIG.maxTouchAgeDays días después de la siguiente página
+// que vea el visitante.
 async function dropStale(storage, now) {
   let raw = null;
   try {
@@ -472,7 +481,7 @@ async function dropStale(storage, now) {
   if (!stored || isExpired(stored, now, CONFIG.maxTouchAgeDays)) await storageRemove(storage, TOUCH_KEY);
 }
 
-// v1 (March 2026) stored UTMs under "hotsale_data" with no expiry. v2 never reads it.
+// La v1 (marzo de 2026) guardaba los UTM en "hotsale_data" sin vencimiento. La v2 nunca la lee.
 storageRemove(browser.localStorage, 'hotsale_data');
 storageRemove(browser.sessionStorage, 'hotsale_data');
 
@@ -487,7 +496,7 @@ analytics.subscribe('page_viewed', async (event) => {
     if (!hit.isHotsale) return;
 
     const touch = buildTouch(hit, now, doc.location.hostname);
-    // Same touch recorded less than 30 minutes ago: do not report again.
+    // El mismo toque registrado hace menos de 30 minutos: no se reporta de nuevo.
     const stored = latestTouch(await readTouch(browser.sessionStorage), await readTouch(browser.localStorage));
     if (isRepeat(stored, touch, now)) return;
 
@@ -517,9 +526,9 @@ analytics.subscribe('checkout_completed', async (event) => {
       'shopify.totalPrice'
     );
 
-    // Shopify fires checkout_completed once per checkout, on the Thank you page
-    // or on the first upsell page. Guard anyway: in memory for this page, and
-    // in sessionStorage across pages.
+    // Shopify dispara checkout_completed una vez por compra, en la página de
+    // agradecimiento o en la primera página de upsell. Se protege igual: en
+    // memoria para esta página y en sessionStorage entre páginas.
     const sentKey = SENT_KEY_PREFIX + order.order_id;
     if (!shouldSend(reportedInThisPage[sentKey] || null, order.order_status)) return;
     reportedInThisPage[sentKey] = order.order_status;
@@ -534,7 +543,7 @@ analytics.subscribe('checkout_completed', async (event) => {
     const isTest = touch.is_test === true || readParams(doc.location.search, ['hs_test']).hs_test === '1';
     await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, CONFIG));
 
-    // One touch, one order: an order with an id uses up the touch.
+    // Un toque, un pedido: un pedido con número agota el toque.
     if (order.order_id) await forgetTouch();
   } catch (e) {}
 });

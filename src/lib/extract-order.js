@@ -1,23 +1,24 @@
 // @strip-start
-// Pure, ES5. Inlined into the conversion snippets by scripts/build.js; the strip
-// blocks are removed. Also loaded by the unit tests through module.exports.
+// Función pura, ES5. scripts/build.js la incluye en los snippets de conversión
+// y quita los bloques strip. Las pruebas unitarias también la cargan con
+// module.exports.
 // @strip-end
-// Reads the order the page exposes; never reads anything about the buyer.
+// Lee el pedido que expone la página; nunca lee nada del comprador.
 //
-// Only three things are read from an order: its id, its value and its currency.
+// Del pedido solo se leen tres cosas: su número, su valor y su moneda.
 
 var MAX_ID_LENGTH = 100;
 var MAX_RAW_LENGTH = 50;
 
-// Strict amount parsing (documented in docs/contrato-collector.md):
-//   250000, "250000", "250000.00", "250000,5"  -> decimal separator, unambiguous
-//   "1.250.000", "1,250,000"                   -> repeated separator = thousands
-//   "1.250.000,00", "1,250,000.00"             -> both: the last one is decimal
-//   "250.000", "1,250"                         -> AMBIGUOUS: one separator followed
-//                                                 by exactly 3 digits. Returns 0.
-//   anything else (letters, negatives, empty)  -> 0
-// A return of 0 makes the order "incomplete"; the raw text travels in
-// order_value_raw so the collector can decide.
+// Lectura estricta de montos (documentada en docs/contrato-collector.md):
+//   250000, "250000", "250000.00", "250000,5"  -> separador decimal, sin ambigüedad
+//   "1.250.000", "1,250,000"                   -> separador repetido = miles
+//   "1.250.000,00", "1,250,000.00"             -> ambos: el último es el decimal
+//   "250.000", "1,250"                         -> AMBIGUO: un separador seguido de
+//                                                 exactamente 3 dígitos. Devuelve 0.
+//   cualquier otra cosa (letras, negativos, vacío) -> 0
+// Devolver 0 marca el pedido como "incomplete"; el texto original viaja en
+// order_value_raw para que el collector decida.
 function parseAmount(raw) {
   if (typeof raw === 'number') return isFinite(raw) && raw > 0 ? raw : 0;
   if (typeof raw !== 'string') return 0;
@@ -49,7 +50,7 @@ function parseAmount(raw) {
   return isFinite(n) && n > 0 ? n : 0;
 }
 
-// "1.250.000" with group "." -> true: first group 1-3 digits, the rest exactly 3.
+// "1.250.000" con grupo "." -> true: el primer grupo tiene 1-3 dígitos y el resto exactamente 3.
 function validGroups(s, group) {
   var g = s.split(group);
   if (!/^\d{1,3}$/.test(g[0])) return false;
@@ -75,8 +76,8 @@ function isEmpty(v) {
   return v == null || v === '';
 }
 
-// buildOrder(id, value, currency, source) -> the order fields of the payload.
-// order_status is 'complete' only with an order id AND a value > 0.
+// buildOrder(id, value, currency, source) -> los campos del pedido en el envío.
+// order_status es 'complete' solo con número de pedido Y un valor > 0.
 function buildOrder(id, value, currency, source) {
   var orderId = normalizeId(id);
   var orderValue = parseAmount(value);
@@ -91,33 +92,33 @@ function buildOrder(id, value, currency, source) {
   };
 }
 
-// One dataLayer entry -> { id, value, currency, source } or null. Each known
-// format is tried in turn; the first one with an id or a value is used, so an
-// entry without data in one format (e.g. an empty GA4 "ecommerce" object next
-// to top-level fields) does not hide another. If that format has no currency,
-// another format of the same entry may supply it: VTEX IO pushes
-// ecommerce.purchase without currencyCode, next to transactionCurrency.
-// Refunds are never read.
+// Una entrada del dataLayer -> { id, value, currency, source } o null. Se
+// prueba cada formato conocido en orden; se usa el primero que tenga número o
+// valor, así que una entrada sin datos en un formato (por ejemplo, un objeto
+// "ecommerce" de GA4 vacío junto a campos de nivel superior) no oculta otro.
+// Si ese formato no trae moneda, otro formato de la misma entrada puede
+// aportarla: VTEX IO envía ecommerce.purchase sin currencyCode, junto a
+// transactionCurrency. Los reembolsos nunca se leen.
 function readEntry(d) {
   if (!d || typeof d !== 'object' || d.event === 'refund') return null;
   var e = d.ecommerce && typeof d.ecommerce === 'object' ? d.ecommerce : null;
   var p = d[2];
   var candidates = [];
   if (d[0] === 'event' && d[1] === 'purchase' && p && typeof p === 'object') {
-    // gtag.js pushes the arguments object of each call: ['event', 'purchase', {...}]
+    // gtag.js agrega el objeto de argumentos de cada llamada: ['event', 'purchase', {...}]
     candidates.push({ id: p.transaction_id, value: p.value, currency: p.currency, source: 'gtag.value' });
   }
   if (e && (!isEmpty(e.transaction_id) || d.event === 'purchase')) {
-    // GA4 ecommerce
+    // GA4, comercio electrónico
     candidates.push({ id: e.transaction_id, value: e.value, currency: e.currency, source: 'ecommerce.value' });
   }
   if (e && e.purchase && e.purchase.actionField) {
-    // Universal Analytics enhanced ecommerce
+    // Universal Analytics, comercio electrónico mejorado
     var af = e.purchase.actionField;
     candidates.push({ id: af.id, value: af.revenue, currency: e.currencyCode, source: 'ecommerce.purchase.revenue' });
   }
   if (!isEmpty(d.transactionId)) {
-    // Universal Analytics standard ecommerce (also VTEX orderPlaced)
+    // Universal Analytics estándar (también VTEX orderPlaced)
     candidates.push({ id: d.transactionId, value: d.transactionTotal, currency: d.transactionCurrency, source: 'transactionTotal' });
   }
   if (d.event === 'purchase') {
@@ -134,12 +135,13 @@ function readEntry(d) {
   return null;
 }
 
-// extractOrder(dataLayer, override) -> order fields (see buildOrder).
-//   override: window.hotsaleOrder = { id, value, currency }, set by the ally
-//   when the platform has no dataLayer. Used when it has an id or a value.
-//   Otherwise, the order is the one named by the MOST RECENT dataLayer entry
-//   that has an id; its value comes from the most recent entry for that same
-//   id with a usable value (a later tag may repeat the id without the value).
+// extractOrder(dataLayer, override) -> campos del pedido (ver buildOrder).
+//   override: window.hotsaleOrder = { id, value, currency }, que define el
+//   aliado cuando la plataforma no tiene dataLayer. Se usa si trae número o valor.
+//   Si no, el pedido es el que nombra la entrada MÁS RECIENTE del dataLayer que
+//   tenga número; su valor sale de la entrada más reciente de ese mismo número
+//   con un valor utilizable (una etiqueta posterior puede repetir el número sin
+//   el valor).
 function extractOrder(dataLayer, override) {
   if (override && typeof override === 'object' && (!isEmpty(override.id) || !isEmpty(override.value))) {
     return buildOrder(override.id, override.value, override.currency, 'hotsaleOrder.value');

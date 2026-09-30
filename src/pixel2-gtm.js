@@ -1,19 +1,19 @@
-// Pixel 2 — conversion for GTM or plain HTML. ES5. Runs on the order
-// confirmation ("thank you") page only.
-// Source of truth: scripts/build.js inlines the libs and the config and writes
-// dist/pixel2-gtm-confirmacion.html, which is what allies paste.
+// Pixel 2 — conversión para GTM o HTML simple. ES5. Se ejecuta solo en la
+// página de confirmación del pedido ("gracias por su compra").
+// Fuente: scripts/build.js incluye las librerías y la configuración y escribe
+// dist/pixel2-gtm-confirmacion.html, que es lo que pegan los aliados.
 //
-// What it does, and nothing else:
-//   1. Reads the Hot Sale touch stored by Pixel 1. None, or older than
-//      CONFIG.maxTouchAgeDays -> stop (an expired touch is deleted).
-//   2. Reads order id, value and currency from window.hotsaleOrder or the
-//      dataLayer (lib/extract-order.js). Nothing about the buyer is read.
-//   3. Sends one "purchase" request to the collector, complete or not; the
-//      collector applies the attribution rules.
-//   4. Order with an id (complete or not) -> deletes the touch: one touch,
-//      one order. No order id -> keeps it, so a reload with full order data
-//      can still report.
-// Does not push to the dataLayer, does not call or load any other tag.
+// Qué hace, y nada más:
+//   1. Lee el toque de Hot Sale guardado por el Pixel 1. Si no hay, o tiene más
+//      de CONFIG.maxTouchAgeDays días, se detiene (un toque vencido se borra).
+//   2. Lee el número, el valor y la moneda del pedido en window.hotsaleOrder o
+//      en el dataLayer (lib/extract-order.js). No lee nada del comprador.
+//   3. Envía una petición "purchase" al collector, completa o no; el collector
+//      aplica las reglas de atribución.
+//   4. Pedido con número (completo o no) -> borra el toque: un toque, un
+//      pedido. Sin número de pedido -> lo conserva, para que una recarga con
+//      los datos completos pueda reportarlo.
+// No agrega nada al dataLayer y no llama ni carga ninguna otra etiqueta.
 (function () {
   'use strict';
 

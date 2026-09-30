@@ -1,16 +1,16 @@
 // @strip-start
-// Pure, ES5. Inlined into every snippet by scripts/build.js; the strip blocks are
-// removed. Also loaded by the unit tests through module.exports.
+// Función pura, ES5. scripts/build.js la incluye en cada snippet y quita los
+// bloques strip. Las pruebas unitarias también la cargan con module.exports.
 // @strip-end
-// The stored touch and the payloads sent to the collector. Field order of the
-// payloads follows docs/contrato-collector.md.
+// El toque guardado y los envíos al collector. El orden de los campos de los
+// envíos sigue docs/contrato-collector.md.
 
 var TOUCH_KEY = 'hotsale_touch_v2';
 var SENT_KEY_PREFIX = 'hotsale_sent_';
 var DAY_MS = 86400000;
 var REPEAT_WINDOW_MS = 30 * 60000;
 
-// The object stored under TOUCH_KEY.
+// El objeto que se guarda con TOUCH_KEY.
 function buildTouch(hit, nowMs, storeDomain) {
   return {
     v: 2,
@@ -27,8 +27,8 @@ function buildTouch(hit, nowMs, storeDomain) {
   };
 }
 
-// Stored JSON -> touch, or null if missing, malformed or not v2 (v1 leftovers
-// under the old key "hotsale_data" are never read).
+// JSON guardado -> toque, o null si falta, está dañado o no es v2 (los restos
+// de la v1 con la clave anterior, "hotsale_data", nunca se leen).
 function parseTouch(json) {
   if (!json) return null;
   var t;
@@ -41,10 +41,10 @@ function parseTouch(json) {
   return t;
 }
 
-// Two touches are the same if their UTMs and is_test match. landed_at,
-// signal and store_domain are ignored: a reload of the landing page, or a
-// store that carries the UTMs over to internal links (the referrer is then
-// the store itself, so the signal changes), is not a new touch.
+// Dos toques son el mismo si coinciden sus UTM e is_test. landed_at, signal y
+// store_domain se ignoran: una recarga de la página de llegada, o una tienda
+// que conserva los UTM en sus enlaces internos (entonces el referrer es la
+// propia tienda y la señal cambia), no es un toque nuevo.
 function sameTouch(a, b) {
   if (!a || !b) return false;
   var keys = ['is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
@@ -54,24 +54,25 @@ function sameTouch(a, b) {
   return true;
 }
 
-// True if `touch` repeats the stored touch: same UTMs and is_test, landed less
-// than 30 minutes ago (in this tab or another). A repeat is not reported
-// again and does not move landed_at, so a reload or the same link opened in
-// two tabs is one visit, while the same link followed days later is a new one.
+// Verdadero si `touch` repite el toque guardado: mismos UTM e is_test, y llegó
+// hace menos de 30 minutos (en esta pestaña o en otra). Una repetición no se
+// reporta de nuevo y no mueve landed_at, así que una recarga o el mismo enlace
+// abierto en dos pestañas es una sola visita, mientras que el mismo enlace
+// seguido días después es una nueva.
 function isRepeat(stored, touch, nowMs) {
   if (!sameTouch(stored, touch)) return false;
   var age = nowMs - Date.parse(stored.landed_at);
   return age >= 0 && age < REPEAT_WINDOW_MS;
 }
 
-// The most recent of two touches (either may be null).
+// El más reciente de dos toques (cualquiera puede ser null).
 function latestTouch(a, b) {
   if (!a) return b || null;
   if (!b) return a;
   return Date.parse(b.landed_at) > Date.parse(a.landed_at) ? b : a;
 }
 
-// Older than maxDays, or more than a day in the future (clock changed).
+// Con más de maxDays días, o con más de un día en el futuro (el reloj cambió).
 function isExpired(touch, nowMs, maxDays) {
   var age = nowMs - Date.parse(touch.landed_at);
   return age > maxDays * DAY_MS || age < -DAY_MS;
@@ -113,10 +114,10 @@ function purchasePayload(touch, order, storeDomain, nowMs, isTest, cfg) {
   return basePayload('purchase', storeDomain, touch, nowMs, isTest, cfg, order);
 }
 
-// Double-send guard for the thank-you page. `previous` is the status stored
-// under SENT_KEY_PREFIX + order_id in sessionStorage (or null). An incomplete
-// report may be followed by one complete report of the same order; nothing
-// is ever sent twice with the same status.
+// Protección contra el doble envío en la página de agradecimiento. `previous`
+// es el estado guardado con SENT_KEY_PREFIX + order_id en sessionStorage (o
+// null). Un reporte incompleto puede ir seguido de un reporte completo del
+// mismo pedido; nunca se envía dos veces con el mismo estado.
 function shouldSend(previous, status) {
   if (previous === 'complete') return false;
   if (previous === 'incomplete') return status === 'complete';

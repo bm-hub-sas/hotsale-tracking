@@ -1,19 +1,22 @@
-// Shopify custom pixel (Settings -> Customer events -> Add custom pixel).
-// Source of truth: scripts/build.js inlines the libs and the config and writes
-// dist/pixel2-shopify-customer-events.js, which is what allies paste.
+// Píxel personalizado de Shopify (Configuración -> Eventos de cliente ->
+// Agregar píxel personalizado).
+// Fuente: scripts/build.js incluye las librerías y la configuración y escribe
+// dist/pixel2-shopify-customer-events.js, que es lo que pegan los aliados.
 //
-// On Shopify this one snippet does both jobs, so nothing goes in theme.liquid:
-//   page_viewed        -> same capture logic as Pixel 1 (lib/classify.js)
-//   checkout_completed -> same reporting logic as Pixel 2 (lib/touch.js)
+// En Shopify este único snippet hace los dos trabajos, así que no va nada en
+// theme.liquid:
+//   page_viewed        -> la misma lógica de captura del Pixel 1 (lib/classify.js)
+//   checkout_completed -> la misma lógica de reporte del Pixel 2 (lib/touch.js)
 //
-// Custom pixels run in a sandboxed iframe (Shopify "lax" sandbox, no
-// allow-same-origin). Storage is reached only through Shopify's async
-// browser.sessionStorage / browser.localStorage, which run in the top frame:
-// the store's own storage, where the touch lives. window.localStorage inside
-// the sandbox is a snapshot and is not used.
-// The request goes through browser.sendBeacon, which Shopify runs in the top
-// frame. Shopify marks it deprecated; if it is unavailable, fetch is used.
-// Order id, value and currency are the only order fields read.
+// Los píxeles personalizados se ejecutan en un iframe aislado (sandbox "lax"
+// de Shopify, sin allow-same-origin). El almacenamiento solo se alcanza con
+// browser.sessionStorage / browser.localStorage de Shopify, que son asíncronos
+// y se ejecutan en el marco superior: el almacenamiento de la propia tienda,
+// donde vive el toque. window.localStorage dentro del sandbox es una copia
+// instantánea y no se usa.
+// La petición sale por browser.sendBeacon, que Shopify ejecuta en el marco
+// superior. Shopify lo marca como obsoleto; si no está disponible, se usa fetch.
+// El número, el valor y la moneda son los únicos campos del pedido que se leen.
 
 /* @config */
 
@@ -43,9 +46,10 @@ async function storageRemove(storage, key) {
   } catch (e) {}
 }
 
-// Some stores report order ids as "gid://shopify/OrderIdentity/5210499102",
-// others as "5210499102". Keep the number: the order ID in the admin URL of the
-// order (not the order name such as #1001, which the event does not carry).
+// Algunas tiendas reportan el número de pedido como
+// "gid://shopify/OrderIdentity/5210499102" y otras como "5210499102". Se
+// conserva el número: el ID del pedido en su URL del administrador (no el
+// nombre del pedido, como #1001, que el evento no trae).
 function shopifyOrderId(id) {
   const s = id == null ? '' : String(id);
   return s.indexOf('gid://') === 0 ? s.slice(s.lastIndexOf('/') + 1) : s;
@@ -56,8 +60,8 @@ async function forgetTouch() {
   await storageRemove(browser.localStorage, TOUCH_KEY);
 }
 
-// The only network request the pixel makes. The body is a string, so it is
-// sent as text/plain: a CORS "simple" request, no preflight.
+// La única petición de red que hace el píxel. El cuerpo es un texto, así que
+// se envía como text/plain: una petición CORS "simple", sin preflight.
 async function send(payload) {
   const body = JSON.stringify(payload);
   try {
@@ -68,8 +72,9 @@ async function send(payload) {
   } catch (e) {}
 }
 
-// Deletes a stored touch that is expired or unreadable, so no touch is kept
-// longer than CONFIG.maxTouchAgeDays past the visitor's next page view.
+// Borra un toque guardado que esté vencido o dañado, para que ningún toque se
+// conserve más de CONFIG.maxTouchAgeDays días después de la siguiente página
+// que vea el visitante.
 async function dropStale(storage, now) {
   let raw = null;
   try {
@@ -80,7 +85,7 @@ async function dropStale(storage, now) {
   if (!stored || isExpired(stored, now, CONFIG.maxTouchAgeDays)) await storageRemove(storage, TOUCH_KEY);
 }
 
-// v1 (March 2026) stored UTMs under "hotsale_data" with no expiry. v2 never reads it.
+// La v1 (marzo de 2026) guardaba los UTM en "hotsale_data" sin vencimiento. La v2 nunca la lee.
 storageRemove(browser.localStorage, 'hotsale_data');
 storageRemove(browser.sessionStorage, 'hotsale_data');
 
@@ -95,7 +100,7 @@ analytics.subscribe('page_viewed', async (event) => {
     if (!hit.isHotsale) return;
 
     const touch = buildTouch(hit, now, doc.location.hostname);
-    // Same touch recorded less than 30 minutes ago: do not report again.
+    // El mismo toque registrado hace menos de 30 minutos: no se reporta de nuevo.
     const stored = latestTouch(await readTouch(browser.sessionStorage), await readTouch(browser.localStorage));
     if (isRepeat(stored, touch, now)) return;
 
@@ -125,9 +130,9 @@ analytics.subscribe('checkout_completed', async (event) => {
       'shopify.totalPrice'
     );
 
-    // Shopify fires checkout_completed once per checkout, on the Thank you page
-    // or on the first upsell page. Guard anyway: in memory for this page, and
-    // in sessionStorage across pages.
+    // Shopify dispara checkout_completed una vez por compra, en la página de
+    // agradecimiento o en la primera página de upsell. Se protege igual: en
+    // memoria para esta página y en sessionStorage entre páginas.
     const sentKey = SENT_KEY_PREFIX + order.order_id;
     if (!shouldSend(reportedInThisPage[sentKey] || null, order.order_status)) return;
     reportedInThisPage[sentKey] = order.order_status;
@@ -142,7 +147,7 @@ analytics.subscribe('checkout_completed', async (event) => {
     const isTest = touch.is_test === true || readParams(doc.location.search, ['hs_test']).hs_test === '1';
     await send(purchasePayload(touch, order, doc.location.hostname, now, isTest, CONFIG));
 
-    // One touch, one order: an order with an id uses up the touch.
+    // Un toque, un pedido: un pedido con número agota el toque.
     if (order.order_id) await forgetTouch();
   } catch (e) {}
 });

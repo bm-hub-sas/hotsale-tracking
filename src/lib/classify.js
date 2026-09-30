@@ -1,16 +1,17 @@
 // @strip-start
-// Pure, ES5. Inlined into every snippet by scripts/build.js; the strip blocks are
-// removed. Also loaded by the unit tests through module.exports.
+// Función pura, ES5. scripts/build.js la incluye en cada snippet y quita los
+// bloques strip. Las pruebas unitarias también la cargan con module.exports.
 // @strip-end
-// Decides whether a page view is a Hot Sale touch.
+// Decide si una visita es un toque de Hot Sale.
 //
-// Rule (README, "Regla de atribución"):
-//   A: the referrer hostname is exactly one of cfg.referrerDomains, or
-//   B: utm_source, trimmed and lower-cased, is exactly one of cfg.hsSources, or
-//   C: any UTM value, lower-cased, CONTAINS one of cfg.hsKeywords (the keyword
-//      list used in previous editions).
-// signal names what matched: 'referrer+utm' (A with B or C), 'referrer_only'
-// (A), 'utm_only' (B without A), 'keyword_only' (C alone).
+// Regla (README, "Regla de atribución"):
+//   A: el dominio del referrer es exactamente uno de cfg.referrerDomains, o
+//   B: utm_source, sin espacios y en minúsculas, es exactamente uno de
+//      cfg.hsSources, o
+//   C: algún valor de UTM, en minúsculas, CONTIENE una de cfg.hsKeywords (la
+//      lista de palabras clave de ediciones anteriores).
+// signal indica qué coincidió: 'referrer+utm' (A con B o C), 'referrer_only'
+// (A), 'utm_only' (B sin A), 'keyword_only' (solo C).
 
 var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
 var MAX_FIELD_LENGTH = 200;
@@ -28,8 +29,9 @@ function decodeParam(s) {
   }
 }
 
-// Returns the first value of each wanted key found in the query string of
-// `url` (a full URL or just "?a=b"). Only wanted keys are read.
+// Devuelve el primer valor de cada clave pedida que aparece en la cadena de
+// consulta de `url` (una URL completa o solo "?a=b"). Solo se leen las claves
+// pedidas.
 function readParams(url, wanted) {
   var out = {};
   var s = String(url || '');
@@ -51,8 +53,8 @@ function readParams(url, wanted) {
   return out;
 }
 
-// Hostname of an absolute URL, lower-cased, without userinfo, port or trailing
-// dot. "" if the string is not an absolute URL.
+// Dominio de una URL absoluta, en minúsculas, sin usuario, puerto ni punto
+// final. "" si el texto no es una URL absoluta.
 function hostOf(url) {
   var m = /^[a-z][a-z0-9+.\-]*:\/\/([^\/?#]*)/i.exec(String(url || ''));
   if (!m) return '';
@@ -70,7 +72,7 @@ function inList(value, list) {
   return false;
 }
 
-// True if any UTM value contains one of the keywords (both lower-case).
+// Verdadero si algún valor de UTM contiene una de las palabras clave (ambos en minúsculas).
 function hasKeyword(utms, keywords) {
   if (!keywords) return false;
   for (var i = 0; i < UTM_KEYS.length; i++) {

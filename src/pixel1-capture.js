@@ -1,15 +1,16 @@
-// Pixel 1 — capture. ES5, safe for GTM Custom HTML. Runs on every page.
-// Source of truth: scripts/build.js inlines the libs and the config and writes
-// dist/pixel1-todas-las-paginas.html, which is what allies paste.
+// Pixel 1 — captura. ES5, apto para HTML personalizado de GTM. Se ejecuta en
+// todas las páginas.
+// Fuente: scripts/build.js incluye las librerías y la configuración y escribe
+// dist/pixel1-todas-las-paginas.html, que es lo que pegan los aliados.
 //
-// What it does, and nothing else:
-//   1. Removes the v1 key "hotsale_data" if an old install left it behind, and
-//      a stored touch older than CONFIG.maxTouchAgeDays.
-//   2. Classifies the visit (lib/classify.js). Not a Hot Sale touch -> stop.
-//   3. Stores the touch under "hotsale_touch_v2" in sessionStorage and
-//      localStorage and reports it with event "touch", unless it repeats the
-//      stored touch within 30 minutes (lib/touch.js, isRepeat).
-// No listeners, no timers, no DOM changes, no cookies.
+// Qué hace, y nada más:
+//   1. Borra la clave de la v1, "hotsale_data", si una instalación anterior la
+//      dejó, y un toque guardado de más de CONFIG.maxTouchAgeDays días.
+//   2. Clasifica la visita (lib/classify.js). Si no es un toque de Hot Sale, se detiene.
+//   3. Guarda el toque con la clave "hotsale_touch_v2" en sessionStorage y en
+//      localStorage y lo reporta con el evento "touch", salvo que repita el
+//      toque guardado en los últimos 30 minutos (lib/touch.js, isRepeat).
+// Sin listeners, sin temporizadores, sin cambios en el DOM y sin cookies.
 (function () {
   'use strict';
 
@@ -19,8 +20,9 @@
   /* @inline lib/touch.js */
   /* @inline lib/browser.js */
 
-  // Deletes a stored touch that is expired or unreadable, so no touch is
-  // kept longer than CONFIG.maxTouchAgeDays past the visitor's next page view.
+  // Borra un toque guardado que esté vencido o dañado, para que ningún toque
+  // se conserve más de CONFIG.maxTouchAgeDays días después de la siguiente
+  // página que vea el visitante.
   function dropStale(area, now) {
     var raw = storageGet(area, TOUCH_KEY);
     if (!raw) return;
@@ -40,16 +42,17 @@
 
     var touch = buildTouch(hit, now, location.hostname);
 
-    // Same touch recorded less than 30 minutes ago (a reload, or the same link
-    // in another tab): keep the original landed_at and do not report again.
+    // El mismo toque registrado hace menos de 30 minutos (una recarga, o el
+    // mismo enlace en otra pestaña): se conserva el landed_at original y no se
+    // reporta de nuevo.
     var stored = latestTouch(
       parseTouch(storageGet('sessionStorage', TOUCH_KEY)),
       parseTouch(storageGet('localStorage', TOUCH_KEY))
     );
     if (isRepeat(stored, touch, now)) return;
 
-    // A new Hot Sale touch replaces the previous one. Visits that are not
-    // Hot Sale touches never reach this point, so they never clear it.
+    // Un toque nuevo de Hot Sale reemplaza al anterior. Las visitas que no son
+    // toques de Hot Sale nunca llegan aquí, así que nunca lo borran.
     var json = JSON.stringify(touch);
     storageSet('sessionStorage', TOUCH_KEY, json);
     storageSet('localStorage', TOUCH_KEY, json);

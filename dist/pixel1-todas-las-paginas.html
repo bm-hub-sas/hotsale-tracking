@@ -2,18 +2,19 @@
 <!-- Código fuente, documentación y SHA-256: https://github.com/bm-hub-sas/hotsale-tracking -->
 <!-- Generado por scripts/build.js desde src/pixel1-capture.js. Es el mismo archivo para todos los aliados. -->
 <script>
-// Pixel 1 — capture. ES5, safe for GTM Custom HTML. Runs on every page.
-// Source of truth: scripts/build.js inlines the libs and the config and writes
-// dist/pixel1-todas-las-paginas.html, which is what allies paste.
+// Pixel 1 — captura. ES5, apto para HTML personalizado de GTM. Se ejecuta en
+// todas las páginas.
+// Fuente: scripts/build.js incluye las librerías y la configuración y escribe
+// dist/pixel1-todas-las-paginas.html, que es lo que pegan los aliados.
 //
-// What it does, and nothing else:
-//   1. Removes the v1 key "hotsale_data" if an old install left it behind, and
-//      a stored touch older than CONFIG.maxTouchAgeDays.
-//   2. Classifies the visit (lib/classify.js). Not a Hot Sale touch -> stop.
-//   3. Stores the touch under "hotsale_touch_v2" in sessionStorage and
-//      localStorage and reports it with event "touch", unless it repeats the
-//      stored touch within 30 minutes (lib/touch.js, isRepeat).
-// No listeners, no timers, no DOM changes, no cookies.
+// Qué hace, y nada más:
+//   1. Borra la clave de la v1, "hotsale_data", si una instalación anterior la
+//      dejó, y un toque guardado de más de CONFIG.maxTouchAgeDays días.
+//   2. Clasifica la visita (lib/classify.js). Si no es un toque de Hot Sale, se detiene.
+//   3. Guarda el toque con la clave "hotsale_touch_v2" en sessionStorage y en
+//      localStorage y lo reporta con el evento "touch", salvo que repita el
+//      toque guardado en los últimos 30 minutos (lib/touch.js, isRepeat).
+// Sin listeners, sin temporizadores, sin cambios en el DOM y sin cookies.
 (function () {
   'use strict';
 
@@ -26,15 +27,16 @@
     referrerDomains: ['hotsale.com.co', 'www.hotsale.com.co', 'hotsale.co', 'www.hotsale.co']
   };
 
-  // Decides whether a page view is a Hot Sale touch.
+  // Decide si una visita es un toque de Hot Sale.
   //
-  // Rule (README, "Regla de atribución"):
-  //   A: the referrer hostname is exactly one of cfg.referrerDomains, or
-  //   B: utm_source, trimmed and lower-cased, is exactly one of cfg.hsSources, or
-  //   C: any UTM value, lower-cased, CONTAINS one of cfg.hsKeywords (the keyword
-  //      list used in previous editions).
-  // signal names what matched: 'referrer+utm' (A with B or C), 'referrer_only'
-  // (A), 'utm_only' (B without A), 'keyword_only' (C alone).
+  // Regla (README, "Regla de atribución"):
+  //   A: el dominio del referrer es exactamente uno de cfg.referrerDomains, o
+  //   B: utm_source, sin espacios y en minúsculas, es exactamente uno de
+  //      cfg.hsSources, o
+  //   C: algún valor de UTM, en minúsculas, CONTIENE una de cfg.hsKeywords (la
+  //      lista de palabras clave de ediciones anteriores).
+  // signal indica qué coincidió: 'referrer+utm' (A con B o C), 'referrer_only'
+  // (A), 'utm_only' (B sin A), 'keyword_only' (solo C).
 
   var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
   var MAX_FIELD_LENGTH = 200;
@@ -52,8 +54,9 @@
     }
   }
 
-  // Returns the first value of each wanted key found in the query string of
-  // `url` (a full URL or just "?a=b"). Only wanted keys are read.
+  // Devuelve el primer valor de cada clave pedida que aparece en la cadena de
+  // consulta de `url` (una URL completa o solo "?a=b"). Solo se leen las claves
+  // pedidas.
   function readParams(url, wanted) {
     var out = {};
     var s = String(url || '');
@@ -75,8 +78,8 @@
     return out;
   }
 
-  // Hostname of an absolute URL, lower-cased, without userinfo, port or trailing
-  // dot. "" if the string is not an absolute URL.
+  // Dominio de una URL absoluta, en minúsculas, sin usuario, puerto ni punto
+  // final. "" si el texto no es una URL absoluta.
   function hostOf(url) {
     var m = /^[a-z][a-z0-9+.\-]*:\/\/([^\/?#]*)/i.exec(String(url || ''));
     if (!m) return '';
@@ -94,7 +97,7 @@
     return false;
   }
 
-  // True if any UTM value contains one of the keywords (both lower-case).
+  // Verdadero si algún valor de UTM contiene una de las palabras clave (ambos en minúsculas).
   function hasKeyword(utms, keywords) {
     if (!keywords) return false;
     for (var i = 0; i < UTM_KEYS.length; i++) {
@@ -125,15 +128,15 @@
       : '';
     return { isHotsale: signal !== '', signal: signal, utms: utms, isTest: params.hs_test === '1' };
   }
-  // The stored touch and the payloads sent to the collector. Field order of the
-  // payloads follows docs/contrato-collector.md.
+  // El toque guardado y los envíos al collector. El orden de los campos de los
+  // envíos sigue docs/contrato-collector.md.
 
   var TOUCH_KEY = 'hotsale_touch_v2';
   var SENT_KEY_PREFIX = 'hotsale_sent_';
   var DAY_MS = 86400000;
   var REPEAT_WINDOW_MS = 30 * 60000;
 
-  // The object stored under TOUCH_KEY.
+  // El objeto que se guarda con TOUCH_KEY.
   function buildTouch(hit, nowMs, storeDomain) {
     return {
       v: 2,
@@ -150,8 +153,8 @@
     };
   }
 
-  // Stored JSON -> touch, or null if missing, malformed or not v2 (v1 leftovers
-  // under the old key "hotsale_data" are never read).
+  // JSON guardado -> toque, o null si falta, está dañado o no es v2 (los restos
+  // de la v1 con la clave anterior, "hotsale_data", nunca se leen).
   function parseTouch(json) {
     if (!json) return null;
     var t;
@@ -164,10 +167,10 @@
     return t;
   }
 
-  // Two touches are the same if their UTMs and is_test match. landed_at,
-  // signal and store_domain are ignored: a reload of the landing page, or a
-  // store that carries the UTMs over to internal links (the referrer is then
-  // the store itself, so the signal changes), is not a new touch.
+  // Dos toques son el mismo si coinciden sus UTM e is_test. landed_at, signal y
+  // store_domain se ignoran: una recarga de la página de llegada, o una tienda
+  // que conserva los UTM en sus enlaces internos (entonces el referrer es la
+  // propia tienda y la señal cambia), no es un toque nuevo.
   function sameTouch(a, b) {
     if (!a || !b) return false;
     var keys = ['is_test', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
@@ -177,24 +180,25 @@
     return true;
   }
 
-  // True if `touch` repeats the stored touch: same UTMs and is_test, landed less
-  // than 30 minutes ago (in this tab or another). A repeat is not reported
-  // again and does not move landed_at, so a reload or the same link opened in
-  // two tabs is one visit, while the same link followed days later is a new one.
+  // Verdadero si `touch` repite el toque guardado: mismos UTM e is_test, y llegó
+  // hace menos de 30 minutos (en esta pestaña o en otra). Una repetición no se
+  // reporta de nuevo y no mueve landed_at, así que una recarga o el mismo enlace
+  // abierto en dos pestañas es una sola visita, mientras que el mismo enlace
+  // seguido días después es una nueva.
   function isRepeat(stored, touch, nowMs) {
     if (!sameTouch(stored, touch)) return false;
     var age = nowMs - Date.parse(stored.landed_at);
     return age >= 0 && age < REPEAT_WINDOW_MS;
   }
 
-  // The most recent of two touches (either may be null).
+  // El más reciente de dos toques (cualquiera puede ser null).
   function latestTouch(a, b) {
     if (!a) return b || null;
     if (!b) return a;
     return Date.parse(b.landed_at) > Date.parse(a.landed_at) ? b : a;
   }
 
-  // Older than maxDays, or more than a day in the future (clock changed).
+  // Con más de maxDays días, o con más de un día en el futuro (el reloj cambió).
   function isExpired(touch, nowMs, maxDays) {
     var age = nowMs - Date.parse(touch.landed_at);
     return age > maxDays * DAY_MS || age < -DAY_MS;
@@ -236,18 +240,19 @@
     return basePayload('purchase', storeDomain, touch, nowMs, isTest, cfg, order);
   }
 
-  // Double-send guard for the thank-you page. `previous` is the status stored
-  // under SENT_KEY_PREFIX + order_id in sessionStorage (or null). An incomplete
-  // report may be followed by one complete report of the same order; nothing
-  // is ever sent twice with the same status.
+  // Protección contra el doble envío en la página de agradecimiento. `previous`
+  // es el estado guardado con SENT_KEY_PREFIX + order_id en sessionStorage (o
+  // null). Un reporte incompleto puede ir seguido de un reporte completo del
+  // mismo pedido; nunca se envía dos veces con el mismo estado.
   function shouldSend(previous, status) {
     if (previous === 'complete') return false;
     if (previous === 'incomplete') return status === 'complete';
     return true;
   }
-  // Storage access and transport for the GTM/HTML snippets. Every function
-  // swallows errors: storage can be blocked (private mode, strict privacy
-  // settings) and the pixel must never break the page.
+  // Acceso al almacenamiento y transporte de los snippets de GTM/HTML. Todas las
+  // funciones ignoran los errores: el almacenamiento puede estar bloqueado (modo
+  // privado, configuración de privacidad estricta) y el píxel nunca debe dañar
+  // la página.
 
   function storageGet(area, key) {
     try {
@@ -269,9 +274,9 @@
     } catch (e) {}
   }
 
-  // The only network request the pixel makes. The body is a string, so both
-  // paths send Content-Type text/plain;charset=UTF-8: a CORS "simple" request,
-  // no preflight. The fetch fallback sends no credentials.
+  // La única petición de red que hace el píxel. El cuerpo es un texto, así que
+  // los dos caminos envían Content-Type text/plain;charset=UTF-8: una petición
+  // CORS "simple", sin preflight. La alternativa con fetch no envía credenciales.
   function send(url, payload) {
     var body = JSON.stringify(payload);
     try {
@@ -284,8 +289,9 @@
     } catch (e) {}
   }
 
-  // Deletes a stored touch that is expired or unreadable, so no touch is
-  // kept longer than CONFIG.maxTouchAgeDays past the visitor's next page view.
+  // Borra un toque guardado que esté vencido o dañado, para que ningún toque
+  // se conserve más de CONFIG.maxTouchAgeDays días después de la siguiente
+  // página que vea el visitante.
   function dropStale(area, now) {
     var raw = storageGet(area, TOUCH_KEY);
     if (!raw) return;
@@ -305,16 +311,17 @@
 
     var touch = buildTouch(hit, now, location.hostname);
 
-    // Same touch recorded less than 30 minutes ago (a reload, or the same link
-    // in another tab): keep the original landed_at and do not report again.
+    // El mismo toque registrado hace menos de 30 minutos (una recarga, o el
+    // mismo enlace en otra pestaña): se conserva el landed_at original y no se
+    // reporta de nuevo.
     var stored = latestTouch(
       parseTouch(storageGet('sessionStorage', TOUCH_KEY)),
       parseTouch(storageGet('localStorage', TOUCH_KEY))
     );
     if (isRepeat(stored, touch, now)) return;
 
-    // A new Hot Sale touch replaces the previous one. Visits that are not
-    // Hot Sale touches never reach this point, so they never clear it.
+    // Un toque nuevo de Hot Sale reemplaza al anterior. Las visitas que no son
+    // toques de Hot Sale nunca llegan aquí, así que nunca lo borran.
     var json = JSON.stringify(touch);
     storageSet('sessionStorage', TOUCH_KEY, json);
     storageSet('localStorage', TOUCH_KEY, json);

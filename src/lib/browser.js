@@ -1,6 +1,7 @@
-// Storage access and transport for the GTM/HTML snippets. Every function
-// swallows errors: storage can be blocked (private mode, strict privacy
-// settings) and the pixel must never break the page.
+// Acceso al almacenamiento y transporte de los snippets de GTM/HTML. Todas las
+// funciones ignoran los errores: el almacenamiento puede estar bloqueado (modo
+// privado, configuración de privacidad estricta) y el píxel nunca debe dañar
+// la página.
 
 function storageGet(area, key) {
   try {
@@ -22,9 +23,9 @@ function storageRemove(area, key) {
   } catch (e) {}
 }
 
-// The only network request the pixel makes. The body is a string, so both
-// paths send Content-Type text/plain;charset=UTF-8: a CORS "simple" request,
-// no preflight. The fetch fallback sends no credentials.
+// La única petición de red que hace el píxel. El cuerpo es un texto, así que
+// los dos caminos envían Content-Type text/plain;charset=UTF-8: una petición
+// CORS "simple", sin preflight. La alternativa con fetch no envía credenciales.
 function send(url, payload) {
   var body = JSON.stringify(payload);
   try {
