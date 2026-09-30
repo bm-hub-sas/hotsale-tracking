@@ -28,15 +28,15 @@ El modelo es el mismo de Hot Sale:
 
 ## Antes de instalar
 
-1. **Otra hoja y otra aplicación web.** Los datos de estas tiendas no se mezclan con los de Hot Sale. Siga los mismos pasos de [collector/apps-script.gs](../collector/apps-script.gs) en una hoja nueva.
-2. **Registrar las tiendas.** En la pestaña `aliados` de esa hoja, escriba el nombre y el dominio de cada tienda de prueba.
-3. **Configurar la URL.** Ponga la URL `/exec` en `COLLECTOR_URL` del perfil `prueba-canales` en [scripts/build.js](../scripts/build.js) y ejecute `npm run build`. Hasta entonces, la compilación avisa que `dist-prueba/` no se debe instalar.
+1. **La misma hoja de Hot Sale.** La prueba usa la misma aplicación web y la misma hoja. Sus filas se distinguen por `pixel_version = 2.0.0-prueba`.
+2. **Registrar las tiendas.** En la pestaña `aliados`, escriba el nombre y el dominio de cada tienda de prueba.
+3. **Filtrar los reportes.** Los reportes de Hot Sale deben excluir `pixel_version = 2.0.0-prueba`, y el de la prueba debe incluir solo ese valor. Así las ventas de estas tiendas no aparecen en las cifras de Hot Sale.
 4. **Instalar.** Use los archivos de `dist-prueba/` con las mismas guías de instalación de `docs/`.
 5. **Probar.** Visite la tienda con `?utm_source=fb&utm_medium=paid&hs_test=1` y haga una compra de prueba.
 
 ## Cómo se ve cada canal en la hoja
 
-En Looker Studio, cree un campo calculado **Canal** sobre la pestaña `pedidos` (o `toques`):
+En Looker Studio, filtre `pixel_version = 2.0.0-prueba` y cree un campo calculado **Canal** sobre la pestaña `pedidos` (o `toques`):
 
 ```
 CASE
