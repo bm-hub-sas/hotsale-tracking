@@ -57,9 +57,9 @@ const PROFILES = {
     note: 'Versión de prueba para otras tiendas: no instalar en aliados de Hot Sale.',
     config: Object.assign({}, CONFIG, {
       PIXEL_VERSION: '2.0.0-prueba',
-      // Same web app and Sheet as Hot Sale (decided 2026-09-29). Test rows are
-      // told apart by pixel_version "2.0.0-prueba": Hot Sale reports must
-      // filter them out.
+      // Same web app and Sheet as Hot Sale (decided 2026-09-29). The collector
+      // stores events from a "-prueba" pixel_version with is_test = true, so
+      // Hot Sale reports leave them out.
       COLLECTOR_URL: CONFIG.COLLECTOR_URL,
       // Meta's {{site_source_name}} gives fb / ig; some accounts write facebook
       // / instagram / meta. Google Ads needs utm_source=google in its template.

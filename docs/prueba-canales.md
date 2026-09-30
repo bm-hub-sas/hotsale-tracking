@@ -29,15 +29,15 @@ El modelo es el mismo de Hot Sale:
 
 ## Antes de instalar
 
-1. **La misma hoja de Hot Sale.** La prueba usa la misma aplicación web y la misma hoja. Sus filas se distinguen por `pixel_version = 2.0.0-prueba`.
+1. **La misma hoja de Hot Sale.** La prueba usa la misma aplicación web y la misma hoja. El collector guarda sus filas con `is_test = true`.
 2. **Registrar las tiendas.** En la pestaña `aliados`, escriba el nombre y el dominio de cada tienda de prueba.
-3. **Filtrar los reportes.** Los reportes de Hot Sale deben excluir `pixel_version = 2.0.0-prueba`, y el de la prueba debe incluir solo ese valor. Así las ventas de estas tiendas no aparecen en las cifras de Hot Sale.
+3. **Filtrar los reportes.** Los reportes de Hot Sale ya excluyen `is_test = true`, así que las ventas de estas tiendas no aparecen en sus cifras. El reporte de la prueba filtra por `aliado`, con las tiendas de prueba.
 4. **Instalar.** Use los archivos de `dist-prueba/` con las mismas guías de instalación de `docs/`.
 5. **Probar.** Visite la tienda con `?utm_source=fb&utm_medium=paid&hs_test=1` y haga una compra de prueba.
 
 ## Cómo se ve cada canal en la hoja
 
-En Looker Studio, filtre `pixel_version = 2.0.0-prueba` y cree un campo calculado **Canal** sobre la pestaña `pedidos` (o `toques`):
+En Looker Studio, filtre por `aliado` (las tiendas de prueba) y cree un campo calculado **Canal** sobre la pestaña `pedidos` (o `toques`):
 
 ```
 CASE

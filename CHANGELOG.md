@@ -2,6 +2,20 @@
 
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones siguen [SemVer](https://semver.org/lang/es/). Cualquier cambio en la lógica de atribución genera una versión nueva; una versión publicada no se modifica.
 
+## [Sin publicar]
+
+El píxel no cambia: solo cambia el collector (`collector/apps-script.gs`). Para aplicarlo, pegue el código, despliéguelo como versión nueva del despliegue actual (la URL no cambia) y ejecute `migrar` y después `setup`.
+
+### Collector
+
+- **`eventos` ya no guarda `v` ni `pixel_version`.** Los dos se siguen validando.
+- **`landed_at` y `sent_at` se guardan como fechas**, que la hoja muestra en hora de Colombia. Antes se guardaban como texto en UTC. Se rechaza un `sent_at` que no sea una fecha.
+- **Los envíos del perfil de prueba (`2.0.0-prueba`) se guardan con `is_test = true`**, así que quedan fuera de los reportes de Hot Sale.
+- **`rechazados` guarda un campo por columna** (`store_domain`, `event`, `pixel_version`, `order_id`, `order_value`, `landed_at` y tres UTM, máx. 100 caracteres cada uno), en lugar del cuerpo completo. Solo cuando el cuerpo no es JSON guarda sus primeros 200 caracteres, en `extracto`.
+- Nueva función `migrar`: convierte al formato nuevo una hoja creada antes y reconstruye `toques` y `pedidos`.
+- Nueva función `archivar`: antes del evento, mueve las filas a una hoja nueva y deja la principal vacía.
+- **Más capacidad.** `setup` borra las columnas sin uso, que también cuentan para el límite de celdas de la hoja. `procesar` lee solo las columnas que necesita. La lista de aliados se lee como máximo una vez por minuto, en lugar de en cada envío.
+
 ## [2.0.0] — 2026-09-28
 
 Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la versión de marzo e instale los archivos nuevos de `dist/` (ver las guías en `docs/`).

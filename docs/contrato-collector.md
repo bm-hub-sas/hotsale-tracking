@@ -97,11 +97,11 @@ Con cada envío (`doPost`):
    - `v` distinto de 2, o versiones del píxel que no sean 2.x;
    - valores de `event`, `signal`, `order_status` o `currency` fuera de la lista;
    - tipos incorrectos o textos de más de 500 caracteres;
-   - un `landed_at` de hace más de 31 días o más de un día en el futuro.
-2. **Solo acepta tiendas registradas.** `store_domain` debe ser un dominio de la pestaña `aliados` o un subdominio suyo: `tienda.com` acepta `www.tienda.com` y `checkout.tienda.com`, pero no `tienda.com.evil.com`.
+   - un `landed_at` de hace más de 31 días o más de un día en el futuro, o un `sent_at` que no sea una fecha.
+2. **Solo acepta tiendas registradas.** `store_domain` debe ser un dominio de la pestaña `aliados` o un subdominio suyo: `tienda.com` acepta `www.tienda.com` y `checkout.tienda.com`, pero no `tienda.com.evil.com`. La lista se lee como máximo una vez por minuto: una tienda recién agregada se acepta en menos de un minuto.
 3. **Limita el volumen.** Se rechazan los envíos de una tienda por encima de 120 por minuto. Se registran como máximo 30 rechazos por minuto, para que una avalancha no llene la hoja.
-4. **Guarda el texto como texto.** Todo lo que llega se escribe como texto literal: un UTM como `=IMPORTXML(...)` nunca se convierte en fórmula.
-5. **Registra todo en `eventos`** (o en `rechazados`, con el motivo) y responde `ok`.
+4. **Guarda el texto como texto.** Todo lo que llega se escribe como texto literal: un UTM como `=IMPORTXML(...)` nunca se convierte en fórmula. Las excepciones son los números, `is_test` y las fechas `landed_at` y `sent_at`. Estas se guardan como fechas y la hoja las muestra en hora de Colombia, su zona horaria.
+5. **Registra todo en `eventos`** (o en `rechazados`, con el motivo) y responde `ok`. `v` y `pixel_version` se validan, pero no se guardan. Los envíos del perfil de prueba (`pixel_version` terminada en `-prueba`) se guardan con `is_test = true`.
 
 Cada 10 minutos (`procesar`):
 
@@ -114,17 +114,21 @@ Cada 10 minutos (`procesar`):
 
 `reprocesar` reconstruye `toques` y `pedidos` desde `eventos`, por ejemplo después de cambiar una regla.
 
+`migrar` convierte una hoja creada antes del 30 de septiembre de 2026 al formato actual. Quita `v` y `pixel_version`, convierte las fechas, marca `is_test` en las filas del perfil de prueba y reparte `cuerpo` en columnas. Después reconstruye `toques` y `pedidos`. Se ejecuta una vez, justo después de desplegar la versión nueva, y después se ejecuta `setup` para borrar las columnas que quedan vacías. Si se ejecuta de nuevo, solo convierte las filas que sigan en el formato anterior.
+
+`archivar` copia `eventos`, `rechazados`, `toques` y `pedidos` a una hoja nueva en el Drive del propietario y borra sus filas en la hoja principal. El registro de la ejecución muestra el enlace a la hoja nueva. Úselo solo antes del evento: un pedido cuya llegada se archivó queda con la alerta `sin llegada registrada`. No borre filas de `eventos` a mano: `procesar` dejaría de procesar los eventos nuevos hasta que la pestaña volviera a tener las filas borradas.
+
 | Pestaña | Contenido | La escribe |
 |---|---|---|
 | `aliados` | aliado, dominio | Usted, a mano |
 | `eventos` | todos los envíos aceptados, en orden de llegada | `doPost` |
-| `rechazados` | fecha, motivo y cuerpo (máx. 2.000 caracteres) | `doPost` |
+| `rechazados` | fecha y motivo. Si el cuerpo es JSON: `store_domain`, `event`, `pixel_version`, `order_id`, `order_value`, `landed_at`, `utm_source`, `utm_medium` y `utm_campaign`, cada uno de máx. 100 caracteres. Si no lo es: `extracto`, los primeros 200 caracteres | `doPost` |
 | `toques` | una fila por llegada | `procesar` |
 | `pedidos` | una fila por pedido, con `clave_llegada` y `alerta` | `procesar` |
 
 ## Para el reporte
 
-- Ventas atribuidas: `pedidos` con `order_status = complete` e `is_test = false`. Revise primero los que tienen `alerta`.
+- Ventas atribuidas: `pedidos` con `order_status = complete` e `is_test = false`. Revise primero los que tienen `alerta`. `is_test = false` también deja fuera el perfil de prueba.
 - La ventana del evento es `[N días después del 23 de octubre de 2026 — DEFINIR con la CCCE]`. Aplíquela con la columna `recibido`, que es la hora del servidor, no con `sent_at`.
 - No convierta monedas: `currency: ""` es un dato faltante, no COP.
 
@@ -132,3 +136,4 @@ Cada 10 minutos (`procesar`):
 
 - **Sin verificación de origen.** Apps Script no puede leer el encabezado `Origin`. Alguien que lea el snippet puede enviar eventos falsos a nombre de una tienda registrada. Las validaciones, el límite por minuto y las alertas hacen detectables esos envíos, no imposibles. El control final es conciliar los `order_id` con cada aliado antes de reportar cifras.
 - **Capacidad.** Apps Script admite un número limitado de ejecuciones simultáneas por cuenta (30, según las cuotas de Google). En picos por encima de ese límite se pueden perder envíos.
+- **Tamaño de la hoja.** Google Sheets admite 10 millones de celdas por archivo; el límite está pasando a 20 millones desde septiembre de 2026. Cada evento ocupa una fila en `eventos` y otra en `toques` o `pedidos`, unas 41 celdas en total. Eso da unos 240.000 eventos con 10 millones de celdas. Las celdas vacías también cuentan, por eso `setup` borra las columnas sin uso. Cuando la hoja se llena, los envíos se pierden sin aviso.
