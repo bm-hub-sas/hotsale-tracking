@@ -1,4 +1,4 @@
-// Píxel de medición (prueba de canales) v2.0.0-prueba · Shopify — píxel personalizado (Customer events)
+// Píxel de medición (prueba de canales) v2.0.1-prueba · Shopify — píxel personalizado (Customer events)
 // Código fuente, documentación y SHA-256: https://github.com/bm-hub-sas/hotsale-tracking
 // Generado por scripts/build.js desde src/pixel2-shopify.js. Versión de prueba para otras tiendas: no instalar en aliados de Hot Sale.
 
@@ -20,7 +20,7 @@
 // Order id, value and currency are the only order fields read.
 
 const CONFIG = {
-  pixelVersion: '2.0.0-prueba',
+  pixelVersion: '2.0.1-prueba',
   collectorUrl: 'https://script.google.com/macros/s/AKfycbzeCZ3yX3SDL462PF5tLrPPtU3U3qze3Ptx99QbwUc2lbZAbzK2NjDhrZtdPkbBnj-BGA/exec',
   maxTouchAgeDays: 30,
   hsSources: ['facebook', 'fb', 'instagram', 'ig', 'meta', 'google'],
@@ -219,7 +219,10 @@ function buildOrder(id, value, currency, source) {
 // One dataLayer entry -> { id, value, currency, source } or null. Each known
 // format is tried in turn; the first one with an id or a value is used, so an
 // entry without data in one format (e.g. an empty GA4 "ecommerce" object next
-// to top-level fields) does not hide another. Refunds are never read.
+// to top-level fields) does not hide another. If that format has no currency,
+// another format of the same entry may supply it: VTEX IO pushes
+// ecommerce.purchase without currencyCode, next to transactionCurrency.
+// Refunds are never read.
 function readEntry(d) {
   if (!d || typeof d !== 'object' || d.event === 'refund') return null;
   var e = d.ecommerce && typeof d.ecommerce === 'object' ? d.ecommerce : null;
@@ -246,7 +249,12 @@ function readEntry(d) {
     candidates.push({ id: d.transaction_id, value: d.value, currency: d.currency, source: 'purchase.value' });
   }
   for (var i = 0; i < candidates.length; i++) {
-    if (!isEmpty(candidates[i].id) || !isEmpty(candidates[i].value)) return candidates[i];
+    var c = candidates[i];
+    if (isEmpty(c.id) && isEmpty(c.value)) continue;
+    for (var j = 0; j < candidates.length && !normalizeCurrency(c.currency); j++) {
+      if (normalizeCurrency(candidates[j].currency)) c.currency = candidates[j].currency;
+    }
+    return c;
   }
   return null;
 }

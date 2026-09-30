@@ -9,7 +9,7 @@
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const CONFIG = {
-  PIXEL_VERSION: '2.0.0',
+  PIXEL_VERSION: '2.0.1',
   // The Google Apps Script web app (collector/apps-script.gs), October 2026
   // deployment. Code updates must reuse this deployment (Manage deployments >
   // New version) so the URL never changes under the allies' installs.
@@ -56,7 +56,7 @@ const PROFILES = {
     label: 'Píxel de medición (prueba de canales)',
     note: 'Versión de prueba para otras tiendas: no instalar en aliados de Hot Sale.',
     config: Object.assign({}, CONFIG, {
-      PIXEL_VERSION: '2.0.0-prueba',
+      PIXEL_VERSION: '2.0.1-prueba',
       // Same web app and Sheet as Hot Sale (decided 2026-09-29). The collector
       // stores events from a "-prueba" pixel_version with is_test = true, so
       // Hot Sale reports leave them out.

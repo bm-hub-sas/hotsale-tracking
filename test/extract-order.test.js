@@ -21,6 +21,29 @@ test('Universal Analytics transaction (also VTEX orderPlaced)', () => {
   assert.equal(o.order_status, 'complete');
 });
 
+test('VTEX IO orderPlaced: the enhanced ecommerce order, with transactionCurrency as its currency', () => {
+  // What the VTEX IO Google Tag Manager app pushes: the order's fields at the top
+  // level plus ecommerce.purchase, without ecommerce.currencyCode.
+  const ecommerce = { purchase: { actionField: { id: '1665433331879', revenue: 132900 }, products: [] } };
+  const o = extractOrder([{
+    event: 'orderPlaced', transactionId: '1665433331879', transactionTotal: 132900, transactionCurrency: 'COP',
+    ecommerce, ecommerceV2: { ecommerce },
+  }]);
+  assert.equal(o.order_id, '1665433331879');
+  assert.equal(o.order_value, 132900);
+  assert.equal(o.value_source, 'ecommerce.purchase.revenue');
+  assert.equal(o.currency, 'COP');
+});
+
+test('a currency from another format of the same entry, never from another entry', () => {
+  assert.equal(extractOrder([{ ecommerce: { currencyCode: 'usd', purchase: { actionField: { id: 'A', revenue: 1 } } }, transactionId: 'A', transactionCurrency: 'COP' }]).currency,
+    'USD', "the format's own currency comes first");
+  assert.equal(extractOrder([
+    { event: 'orderPlaced', transactionId: 'OLD', transactionTotal: 1, transactionCurrency: 'COP' },
+    { ecommerce: { purchase: { actionField: { id: 'NEW', revenue: 2 } } } },
+  ]).currency, '');
+});
+
 test('Universal Analytics enhanced ecommerce', () => {
   const o = extractOrder([{ ecommerce: { currencyCode: 'COP', purchase: { actionField: { id: 'EE-3', revenue: '150000' } } } }]);
   assert.equal(o.order_id, 'EE-3');

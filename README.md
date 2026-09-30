@@ -2,7 +2,7 @@
 
 Este repositorio contiene el píxel que mide las ventas que las tiendas aliadas reciben desde [hotsale.com.co](https://hotsale.com.co), el evento de la Cámara Colombiana de Comercio Electrónico (CCCE). El píxel tiene dos partes. La **captura** reconoce en su tienda una visita que llega desde Hot Sale y la guarda en el navegador del visitante. La **conversión** reporta el número, el valor y la moneda del pedido en la página de confirmación de compra. Cada envío es una sola petición a un único servidor. Usted pega el código de [`dist/`](dist/), que se genera a partir de [`src/`](src/) y se puede verificar con SHA-256.
 
-**Versión actual: 2.0.0** (Hot Sale, 19 al 23 de octubre de 2026). La versión de marzo de 2026 quedó en la etiqueta [`v1.0.0-marzo2026`](https://github.com/bm-hub-sas/hotsale-tracking/tree/v1.0.0-marzo2026). Los cambios entre versiones están en [CHANGELOG.md](CHANGELOG.md).
+**Versión actual: 2.0.1** (Hot Sale, 19 al 23 de octubre de 2026). La versión de marzo de 2026 quedó en la etiqueta [`v1.0.0-marzo2026`](https://github.com/bm-hub-sas/hotsale-tracking/tree/v1.0.0-marzo2026). Los cambios entre versiones están en [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -18,7 +18,7 @@ El píxel hace dos tipos de envío:
 | Campo | Ejemplo | Qué es | En `touch` | En `purchase` |
 |---|---|---|:-:|:-:|
 | `v` | `2` | Versión del formato del envío | ✓ | ✓ |
-| `pixel_version` | `"2.0.0"` | Versión del píxel instalado | ✓ | ✓ |
+| `pixel_version` | `"2.0.1"` | Versión del píxel instalado | ✓ | ✓ |
 | `event` | `"purchase"` | `touch` o `purchase` | ✓ | ✓ |
 | `store_domain` | `"tienda.com"` | Dominio de la página donde corre el píxel | ✓ | ✓ |
 | `order_id` | `"12345"` | Identificador del pedido que expone su página. En Shopify es el ID interno del pedido, no el número `#1001`. Va vacío si su página no lo expone | | ✓ |
@@ -37,7 +37,7 @@ Este es un envío `purchase` completo:
 
 ```json
 {
-  "v": 2, "pixel_version": "2.0.0", "event": "purchase",
+  "v": 2, "pixel_version": "2.0.1", "event": "purchase",
   "store_domain": "tienda.com", "order_id": "12345", "order_value": 250000, "order_value_raw": "250000",
   "currency": "COP", "order_status": "complete", "value_source": "ecommerce.value",
   "signal": "referrer+utm", "landed_at": "2026-10-19T14:03:22.000Z", "sent_at": "2026-10-19T14:21:05.000Z",

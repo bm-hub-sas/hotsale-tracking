@@ -1,6 +1,6 @@
 {
   "name": "hotsale-tracking",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Píxel de atribución de ventas de aliados de Hot Sale (hotsale.com.co).",
   "license": "MIT",

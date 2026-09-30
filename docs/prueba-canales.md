@@ -2,7 +2,7 @@
 
 `dist-prueba/` es el mismo píxel de Hot Sale con otras listas. Sirve para probar el algoritmo con tráfico real de otras tiendas antes del evento. Usa las mismas tres reglas de producción, cambiando las palabras de Hot Sale por palabras de canal. Así el tráfico de Facebook, Instagram y Google de esas tiendas activa el píxel igual que las campañas de Hot Sale lo harán en producción.
 
-El código es idéntico al de `dist/`: solo cambian la versión (`2.0.0-prueba`) y las listas. Una prueba automática lo verifica.
+El código es idéntico al de `dist/`: solo cambian la versión (`2.0.1-prueba`) y las listas. Una prueba automática lo verifica.
 
 **No lo instale en aliados de Hot Sale.**
 

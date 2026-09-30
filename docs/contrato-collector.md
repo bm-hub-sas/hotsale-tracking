@@ -29,7 +29,7 @@ Los campos llegan siempre, en este orden. Ningún campo lleva datos personales, 
 | Campo | Tipo | `touch` | `purchase` | Reglas |
 |---|---|:-:|:-:|---|
 | `v` | número | ✓ | ✓ | Siempre `2` |
-| `pixel_version` | texto | ✓ | ✓ | Semver del snippet, p. ej. `2.0.0` |
+| `pixel_version` | texto | ✓ | ✓ | Semver del snippet, p. ej. `2.0.1` |
 | `event` | texto | ✓ | ✓ | `touch` o `purchase` |
 | `store_domain` | texto | ✓ | ✓ | `location.hostname` de la página que envía |
 | `order_id` | texto | | ✓ | Máx. 100 caracteres. `""` si no hay. Nunca `unknown`. Shopify: el ID interno del pedido, el que aparece en la URL del pedido en el administrador, no el nombre `#1001`. Se quita el prefijo `gid://shopify/OrderIdentity/` |
@@ -51,7 +51,7 @@ Los campos llegan siempre, en este orden. Ningún campo lleva datos personales, 
 | `hotsaleOrder.value` | `window.hotsaleOrder = {id, value, currency}`, definido por el aliado. Tiene prioridad sobre el `dataLayer` |
 | `ecommerce.value` | GA4: entradas con `ecommerce.transaction_id` o con `event:'purchase'` y un objeto `ecommerce` |
 | `gtag.value` | Llamada de gtag.js `('event', 'purchase', {transaction_id, value, currency})` que queda en el `dataLayer` |
-| `ecommerce.purchase.revenue` | Universal Analytics enhanced ecommerce: `ecommerce.purchase.actionField.{id, revenue}` y `ecommerce.currencyCode` |
+| `ecommerce.purchase.revenue` | Universal Analytics enhanced ecommerce: `ecommerce.purchase.actionField.{id, revenue}` y `ecommerce.currencyCode`. También VTEX IO, que no envía `currencyCode`: la moneda sale de `transactionCurrency`, en la misma entrada |
 | `transactionTotal` | Universal Analytics estándar y VTEX `orderPlaced`: `transactionId`, `transactionTotal`, `transactionCurrency` |
 | `purchase.value` | `{event:'purchase', transaction_id, value, currency}` en el nivel superior |
 | `shopify.totalPrice` | Shopify `checkout.totalPrice`. **Incluye envío e impuestos** |
@@ -61,6 +61,7 @@ Así se elige el pedido en el `dataLayer`:
 
 - Se ignoran las entradas `event: 'refund'` y las que no tienen ni número de pedido ni valor. Dentro de una entrada se prueban los formatos en el orden de la tabla.
 - El pedido es el que nombra **la entrada más reciente que tiene número**.
+- Si el formato elegido no trae la moneda, se toma de otro formato de la misma entrada, nunca de otra entrada.
 - El valor sale de la entrada más reciente de ese mismo pedido que tenga un valor utilizable. Así, una etiqueta posterior que repite el número sin el valor (por ejemplo, de afiliados) no borra el valor, y una compra anterior nunca reemplaza al pedido más reciente.
 
 Lo que cada aliado pone en `value` (con o sin envío o impuestos) depende de su implementación.

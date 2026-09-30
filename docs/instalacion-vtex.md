@@ -9,7 +9,7 @@ En VTEX el píxel se instala con **Google Tag Manager**. Necesita GTM activo en 
 3. Cree el **Pixel 2** como indica la [guía de GTM](instalacion-gtm.md#pixel-2--conversión), con este activador:
    - *Evento personalizado*, nombre del evento: `orderPlaced`.
 
-   En la página de pedido confirmado (`/checkout/orderPlaced`), VTEX envía al `dataLayer` el evento `orderPlaced` con `transactionId`, `transactionTotal` y `transactionCurrency`, y el píxel lee esos tres campos. Si su tienda también envía el evento GA4 `purchase`, el píxel toma el más reciente de los dos.
+   En la página de pedido confirmado (`/checkout/orderPlaced`), VTEX envía al `dataLayer` el evento `orderPlaced` con `transactionId`, `transactionTotal` y `transactionCurrency`, y el píxel lee esos tres campos. En VTEX IO, la misma entrada trae además `ecommerce.purchase`: el píxel toma el pedido de ahí y la moneda de `transactionCurrency`. Si su tienda también envía el evento GA4 `purchase`, el píxel toma el más reciente de los dos.
 4. Publique el contenedor.
 
 ## Verificar

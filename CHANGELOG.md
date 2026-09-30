@@ -2,9 +2,13 @@
 
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones siguen [SemVer](https://semver.org/lang/es/). Cualquier cambio en la lógica de atribución genera una versión nueva; una versión publicada no se modifica.
 
-## [Sin publicar]
+## [2.0.1] — 2026-09-30
 
-El píxel no cambia: solo cambia el collector (`collector/apps-script.gs`). Para aplicarlo, pegue el código, despliéguelo como versión nueva del despliegue actual (la URL no cambia) y ejecute `migrar` y después `setup`.
+**Reemplace el snippet** si ya instaló la 2.0.0: la corrección de la moneda afecta a las tiendas VTEX IO. El collector se actualiza aparte: pegue el código, despliéguelo como versión nueva del despliegue actual (la URL no cambia) y ejecute `migrar` y después `setup`.
+
+### Píxel
+
+- **VTEX IO envía la moneda.** Su evento `orderPlaced` trae el pedido en `ecommerce.purchase` sin `ecommerce.currencyCode`, y la moneda aparte, en `transactionCurrency`. La 2.0.0 leía el pedido de `ecommerce.purchase` y enviaba `currency` vacío. Ahora, si el formato elegido no trae la moneda, el píxel la toma de otro formato de la misma entrada, nunca de otra entrada.
 
 ### Collector
 

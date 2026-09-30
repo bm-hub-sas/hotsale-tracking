@@ -94,7 +94,10 @@ function buildOrder(id, value, currency, source) {
 // One dataLayer entry -> { id, value, currency, source } or null. Each known
 // format is tried in turn; the first one with an id or a value is used, so an
 // entry without data in one format (e.g. an empty GA4 "ecommerce" object next
-// to top-level fields) does not hide another. Refunds are never read.
+// to top-level fields) does not hide another. If that format has no currency,
+// another format of the same entry may supply it: VTEX IO pushes
+// ecommerce.purchase without currencyCode, next to transactionCurrency.
+// Refunds are never read.
 function readEntry(d) {
   if (!d || typeof d !== 'object' || d.event === 'refund') return null;
   var e = d.ecommerce && typeof d.ecommerce === 'object' ? d.ecommerce : null;
@@ -121,7 +124,12 @@ function readEntry(d) {
     candidates.push({ id: d.transaction_id, value: d.value, currency: d.currency, source: 'purchase.value' });
   }
   for (var i = 0; i < candidates.length; i++) {
-    if (!isEmpty(candidates[i].id) || !isEmpty(candidates[i].value)) return candidates[i];
+    var c = candidates[i];
+    if (isEmpty(c.id) && isEmpty(c.value)) continue;
+    for (var j = 0; j < candidates.length && !normalizeCurrency(c.currency); j++) {
+      if (normalizeCurrency(candidates[j].currency)) c.currency = candidates[j].currency;
+    }
+    return c;
   }
   return null;
 }
