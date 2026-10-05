@@ -10,7 +10,7 @@ src/
 scripts/
 test/
 collector/
-iframe-reporte-marca/
+iframe-reporte-marca
 package.json
 package-lock.json
 docs/contrato-collector.md
