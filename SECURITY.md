@@ -20,8 +20,8 @@ Si la corrección cambia el código que los aliados tienen instalado, se publica
 
 ## Alcance
 
-- El código de este repositorio: `src/`, `scripts/`, `collector/` y `dist/` (lo que se instala en las tiendas).
-- El collector ([`collector/apps-script.gs`](collector/apps-script.gs)) y la hoja de cálculo donde guarda los datos, operados por UpSell/BM-Hub.
+- El código de [`Pixels/`](Pixels/) (lo que se instala en las tiendas).
+- El collector y la hoja de cálculo donde guarda los datos, operados por UpSell/BM-Hub.
 
 ## Versiones con soporte
 

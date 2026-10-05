@@ -1,3 +1,0 @@
-989e26deb32aea0599671d5d4999e9ce5a8d933e31329a223c722c97c3edb2f2  pixel1-todas-las-paginas.html
-04bf63810428f34c60d289dfc3a76b1497be2d6e9cb42955fa7aee4418b68515  pixel2-gtm-confirmacion.html
-f615b475f98e1580be969fd0b45886187efc58b94989b3f6494d66908ed45399  pixel2-shopify-customer-events.js

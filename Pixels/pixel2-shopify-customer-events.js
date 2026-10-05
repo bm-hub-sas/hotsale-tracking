@@ -5,7 +5,7 @@
 // Píxel personalizado de Shopify (Configuración -> Eventos de cliente ->
 // Agregar píxel personalizado).
 // Fuente: scripts/build.js incluye las librerías y la configuración y escribe
-// dist/pixel2-shopify-customer-events.js, que es lo que pegan los aliados.
+// Pixels/pixel2-shopify-customer-events.js, que es lo que pegan los aliados.
 //
 // En Shopify este único snippet hace los dos trabajos, así que no va nada en
 // theme.liquid:

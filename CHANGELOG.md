@@ -22,7 +22,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ## [2.0.0] — 2026-09-28
 
-Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la versión de marzo e instale los archivos nuevos de `dist/` (ver las guías en `docs/`).
+Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la versión de marzo e instale los archivos nuevos de `Pixels/` (ver las guías en `docs/`).
 
 ### Su sitio
 
@@ -55,7 +55,7 @@ Versión para Hot Sale octubre de 2026. **Requiere reinstalar:** elimine la vers
 - **El collector valida cada envío.** Solo acepta el formato de esta versión y dominios de aliados registrados, y limita los envíos por minuto por tienda. Los rechazos quedan registrados con el motivo.
 - **Los datos no se pueden convertir en fórmulas.** Todo texto que llega, como los UTM, se guarda como texto literal en la hoja.
 - **Los pedidos sospechosos se marcan** para revisión: sin llegada registrada, con una llegada ya usada por otro pedido o con un valor fuera de lo normal.
-- **Es el mismo archivo para todos los aliados**, versionado y con SHA-256 (`dist/SHA256SUMS.txt`), así que cada aliado puede comprobar que el suyo no fue modificado.
+- **Es el mismo archivo para todos los aliados**, versionado y con SHA-256 (`Pixels/SHA256SUMS.txt`), así que cada aliado puede comprobar que el suyo no fue modificado.
 - Se agregó [SECURITY.md](SECURITY.md).
 
 ### Para quien tenía la versión 1

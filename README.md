@@ -1,6 +1,6 @@
 # Píxel de Hot Sale para aliados
 
-Este repositorio contiene el píxel que mide las ventas que las tiendas aliadas reciben desde [hotsale.com.co](https://hotsale.com.co), el evento de la Cámara Colombiana de Comercio Electrónico (CCCE). El píxel tiene dos partes. La **captura** reconoce en su tienda una visita que llega desde Hot Sale y la guarda en el navegador del visitante. La **conversión** reporta el número, el valor y la moneda del pedido en la página de confirmación de compra. Cada envío es una sola petición a un único servidor. Usted pega el código de [`dist/`](dist/), que se genera a partir de [`src/`](src/) y se puede verificar con SHA-256.
+Este repositorio contiene el píxel que mide las ventas que las tiendas aliadas reciben desde [hotsale.com.co](https://hotsale.com.co), el evento de la Cámara Colombiana de Comercio Electrónico (CCCE). El píxel tiene dos partes. La **captura** reconoce en su tienda una visita que llega desde Hot Sale y la guarda en el navegador del visitante. La **conversión** reporta el número, el valor y la moneda del pedido en la página de confirmación de compra. Cada envío es una sola petición a un único servidor. Usted pega el código de [`Pixels/`](Pixels/), que se puede verificar con SHA-256.
 
 **Versión actual: 2.0.1** (Hot Sale, 19 al 23 de octubre de 2026). La versión de marzo de 2026 quedó en la etiqueta [`v1.0.0-marzo2026`](https://github.com/bm-hub-sas/hotsale-tracking/tree/v1.0.0-marzo2026). Los cambios entre versiones están en [CHANGELOG.md](CHANGELOG.md).
 
@@ -22,7 +22,7 @@ El píxel hace dos tipos de envío:
 | `event` | `"purchase"` | `touch` o `purchase` | ✓ | ✓ |
 | `store_domain` | `"tienda.com"` | Dominio de la página donde corre el píxel | ✓ | ✓ |
 | `order_id` | `"12345"` | Identificador del pedido que expone su página. En Shopify es el ID interno del pedido, no el número `#1001`. Va vacío si su página no lo expone | | ✓ |
-| `order_value` | `250000` | Valor del pedido. Es `0` si falta o si es ambiguo (ver [reglas](docs/contrato-collector.md#valor-del-pedido)) | | ✓ |
+| `order_value` | `250000` | Valor del pedido. Es `0` si falta o si es ambiguo | | ✓ |
 | `order_value_raw` | `"250000"` | El valor tal como lo expone su página, sin interpretar | | ✓ |
 | `currency` | `"COP"` | Código de tres letras de la moneda del pedido. Va vacío si su página no la expone | | ✓ |
 | `order_status` | `"complete"` | `complete` si hay número de pedido y valor mayor que 0; si no, `incomplete` | | ✓ |
@@ -59,12 +59,12 @@ El píxel también borra la clave `hotsale_data` que dejaba la versión de marzo
 
 ## 2. A dónde van
 
-- **Destino único:** una aplicación web de Google Apps Script (`https://script.google.com/macros/s/…/exec`). Es el único servidor al que el píxel se conecta. Su código está en [`collector/apps-script.gs`](collector/apps-script.gs).
+- **Destino único:** una aplicación web de Google Apps Script (`https://script.google.com/macros/s/…/exec`). Es el único servidor al que el píxel se conecta.
 - **Dónde se guardan:** en una hoja de cálculo privada de Google de UpSell/BM-Hub, que opera la medición por encargo de la CCCE. La hoja no se comparte; los reportes se hacen en Looker Studio.
 - **Retención:** `[DEFINIR con la CCCE]`.
 - **Quién puede verlos:** usted (el reporte de su tienda), la CCCE y UpSell/BM-Hub.
 - **IP y navegador:** Google recibe la conexión, como en cualquier servicio web, pero el script no tiene acceso a la IP ni a los encabezados de la petición. Solo recibe el contenido del envío.
-- **Qué rechaza el collector:** envíos de dominios que no pertenecen a un aliado registrado, con un formato distinto al de esta versión, de más de 8 KB, o más de 120 por minuto de una misma tienda. Los pedidos sospechosos quedan marcados para revisión. El detalle está en [docs/contrato-collector.md](docs/contrato-collector.md).
+- **Qué rechaza el collector:** envíos de dominios que no pertenecen a un aliado registrado, con un formato distinto al de esta versión, de más de 8 KB, o más de 120 por minuto de una misma tienda. Los pedidos sospechosos quedan marcados para revisión.
 - **Formato:** la petición es un `POST` con cuerpo `text/plain` (JSON). No dispara preflight CORS.
 
 ## 3. Regla de atribución
@@ -115,19 +115,11 @@ Así el reporte puede separar las ventas de las campañas del aliado para el eve
 - No lee datos del comprador ni del carrito.
 - Hace una sola petición por envío, siempre a la misma URL.
 
-Estas afirmaciones se comprueban de forma automática:
-
-- **Compilación** ([`scripts/build.js`](scripts/build.js)). Falla si un snippet contiene `fbq(`, `gtag(`, `googletagmanager`, `connect.facebook.net`, la URL del collector de marzo, `document.cookie`, `browser.cookie`, `createElement`, `appendChild`, `innerHTML`, `dataLayer.push`, `setTimeout`, `setInterval`, `addEventListener` o `XMLHttpRequest`. También falla si contiene cualquier URL distinta del collector (salvo la de este repositorio, en los comentarios) o nombres de datos personales (`email`, `phone`, `address`…).
-- **Pruebas e2e** ([`test/e2e/`](test/e2e/)). Abren los snippets de GTM/HTML en Chromium, sobre páginas con un píxel de Meta y un `gtag` falsos del aliado, y verifican que:
-  - esas funciones no reciben ninguna llamada;
-  - no aparecen variables globales nuevas;
-  - el contenido del `dataLayer` no cambia;
-  - no hay peticiones de red distintas a la del collector.
-- **Shopify** ([`test/shopify-pixel.test.js`](test/shopify-pixel.test.js)). El snippet se prueba en un entorno que simula la API de píxeles de Shopify, sin acceso a `window` ni a `document`.
+Estas afirmaciones se comprueban de forma automática antes de publicar cada versión: la compilación falla si un snippet contiene llamadas a `fbq`, `gtag`, cookies, `dataLayer.push`, temporizadores, listeners, URLs distintas del collector o nombres de datos personales; y pruebas en Chromium sobre páginas con un píxel de Meta y un `gtag` falsos confirman que esas funciones no reciben llamadas, no aparecen variables globales, el `dataLayer` no cambia y no hay peticiones distintas a la del collector.
 
 ## 5. Instalación
 
-El código es el mismo para todas las tiendas: son los archivos de [`dist/`](dist/). Si tiene instalada la versión de marzo de 2026 (etiquetas "Hotsale UTM Capture" y "Hotsale Conversion Pixel", o código en `theme.liquid`), **elimínela antes** de instalar esta.
+El código es el mismo para todas las tiendas: son los archivos de [`Pixels/`](Pixels/). Si tiene instalada la versión de marzo de 2026 (etiquetas "Hotsale UTM Capture" y "Hotsale Conversion Pixel", o código en `theme.liquid`), **elimínela antes** de instalar esta.
 
 | Plataforma | Qué se instala | Guía |
 |---|---|---|
@@ -155,13 +147,13 @@ Las claves que queden en los navegadores de sus visitantes (§1) ya no se leen n
 
 - Cada snippet indica su versión en la primera línea y en `CONFIG.pixelVersion`. Cada envío incluye `pixel_version`.
 - El código vive en su sitio: no se descarga de ningún servidor, así que no cambia a menos que usted pegue una versión nueva.
-- Todos los aliados reciben exactamente los mismos archivos. [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt) tiene el SHA-256 de cada uno.
+- Todos los aliados reciben exactamente los mismos archivos. [`Pixels/SHA256SUMS.txt`](Pixels/SHA256SUMS.txt) tiene el SHA-256 de cada uno.
 
-Para verificar el archivo que recibió, calcule su SHA-256 y compárelo con `dist/SHA256SUMS.txt`:
+Para verificar el archivo que recibió, calcule su SHA-256 y compárelo con `Pixels/SHA256SUMS.txt`:
 
 ```sh
 shasum -a 256 pixel2-gtm-confirmacion.html                          # macOS / Linux
-cd dist && shasum -a 256 -c SHA256SUMS.txt                          # todas, en una copia del repositorio
+cd Pixels && shasum -a 256 -c SHA256SUMS.txt                          # todas, en una copia del repositorio
 ```
 
 ```powershell
@@ -174,29 +166,5 @@ Get-FileHash .\pixel2-gtm-confirmacion.html -Algorithm SHA256        # Windows
 - Vulnerabilidades: ver [SECURITY.md](SECURITY.md)
 
 ---
-
-## Desarrollo
-
-```sh
-npm install
-npm test            # pruebas unitarias y verificación de que dist/ está al día
-npm run test:e2e    # Chromium (Playwright) contra un collector simulado
-npm run build       # regenera dist/ con su SHA256SUMS.txt
-```
-
-```
-src/pixel1-capture.js      captura (ES5)
-src/pixel2-gtm.js          conversión para GTM/HTML (ES5)
-src/pixel2-shopify.js      píxel personalizado de Shopify (captura y conversión)
-src/lib/                   lógica pura compartida; build.js la incluye en cada snippet
-collector/apps-script.gs   el collector (Google Apps Script + hoja de cálculo)
-scripts/build.js           configuración, compilación y verificaciones
-test/                      pruebas unitarias, arnés de Shopify, collector y e2e
-dist/                      lo que se pega en las tiendas (generado, versionado)
-docs/                      guías de instalación, pruebas y contrato del collector
-iframe-reporte-marca       inserción del reporte de Looker Studio para marcas (no es parte del píxel)
-```
-
-La configuración (URL del collector, días máximos del toque, valores de `utm_source` y dominios de referrer) está al inicio de [`scripts/build.js`](scripts/build.js). `dist/` se genera siempre con `npm run build`, nunca a mano, y `npm test` falla si no está al día.
 
 Licencia: [MIT](LICENSE).

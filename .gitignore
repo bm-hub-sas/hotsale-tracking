@@ -4,3 +4,14 @@ node_modules/
 # Local-only test build (other stores); not published to allies
 dist-prueba/
 docs/prueba-canales.md
+
+# Internal: source, build, tests, collector and notes. Allies only need Pixels/ and the install guides.
+src/
+scripts/
+test/
+collector/
+iframe-reporte-marca
+package.json
+package-lock.json
+docs/contrato-collector.md
+.cora/
