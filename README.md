@@ -162,7 +162,7 @@ Get-FileHash .\pixel2-gtm-confirmacion.html -Algorithm SHA256        # Windows
 
 ## 9. Contacto
 
-- Implementación y dudas: `[correo compartido del proyecto — DEFINIR]`
+- Implementación y dudas: sergio@upsellmarketing.co
 - Vulnerabilidades: ver [SECURITY.md](SECURITY.md)
 
 ---
