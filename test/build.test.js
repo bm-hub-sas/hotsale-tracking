@@ -16,6 +16,7 @@ test('every snippet passes the checks', () => {
 test('each profile folder: SHA256SUMS.txt matches its files', () => {
   for (const profile of Object.values(PROFILES)) {
     const dir = path.join(__dirname, '..', profile.outDir);
+    if (!fs.existsSync(dir)) continue; // dist-prueba/ is local only (gitignored)
     const sums = fs.readFileSync(path.join(dir, 'SHA256SUMS.txt'), 'utf8').trim().split('\n');
     assert.equal(sums.length, TARGETS.length, profile.outDir);
     for (const line of sums) {

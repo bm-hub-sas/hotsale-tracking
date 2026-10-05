@@ -1,2 +1,6 @@
 .DS_Store
 node_modules/
+
+# Local-only test build (other stores); not published to allies
+dist-prueba/
+docs/prueba-canales.md
