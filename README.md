@@ -6,7 +6,28 @@ Este repositorio contiene el píxel que mide las ventas que las tiendas aliadas 
 
 ---
 
-## 1. Qué datos se envían
+
+## 1. Instalación
+
+El código es el mismo para todas las tiendas: son los archivos de [`Pixels/`](Pixels/). Si tiene instalada la versión de marzo de 2026 (etiquetas "Hotsale UTM Capture" y "Hotsale Conversion Pixel", o código en `theme.liquid`), **elimínela antes** de instalar esta.
+
+| Plataforma | Qué se instala | Guía |
+|---|---|---|
+| Shopify | Un solo píxel personalizado en *Eventos de clientes*. Nada en `theme.liquid` | [docs/instalacion-shopify.md](docs/instalacion-shopify.md) |
+| Google Tag Manager (cualquier plataforma) | Pixel 1 en todas las páginas y Pixel 2 en la página de confirmación | [docs/instalacion-gtm.md](docs/instalacion-gtm.md) |
+| VTEX | Por medio de GTM | [docs/instalacion-vtex.md](docs/instalacion-vtex.md) |
+| WooCommerce | Por medio de GTM o de `functions.php` | [docs/instalacion-woocommerce.md](docs/instalacion-woocommerce.md) |
+| Otra plataforma, sin GTM | Pixel 1 en la plantilla principal y Pixel 2 en la página de confirmación | [docs/instalacion-gtm.md#sin-gtm](docs/instalacion-gtm.md#sin-gtm) |
+
+**Videos tutoriales:** hay uno para Google Tag Manager y otro para Shopify [en este enlace](https://hi.switchy.io/tutopixelhot).
+
+**Si su sitio usa Content-Security-Policy**, agregue `https://script.google.com` y `https://script.googleusercontent.com` a `connect-src`. Si no lo hace, el navegador bloquea el envío.
+
+## 2. Cómo verificar la instalación
+
+Visite su tienda con `?utm_source=hotsale&hs_test=1`, haga una compra de prueba y revise en las herramientas de desarrollo del navegador las dos peticiones a `script.google.com`. Los envíos de prueba no cuentan en los reportes. El paso a paso está en [docs/pruebas.md](docs/pruebas.md).
+
+Qué datos se envían
 
 **No se envía ningún dato personal del comprador.** El píxel no lee nombre, correo, teléfono, dirección, documento ni el contenido del carrito. De la página de confirmación solo lee el número, el valor y la moneda del pedido.
 
@@ -17,8 +38,6 @@ El píxel hace dos tipos de envío:
 
 | Campo | Ejemplo | Qué es | En `touch` | En `purchase` |
 |---|---|---|:-:|:-:|
-| `v` | `2` | Versión del formato del envío | ✓ | ✓ |
-| `pixel_version` | `"2.0.1"` | Versión del píxel instalado | ✓ | ✓ |
 | `event` | `"purchase"` | `touch` o `purchase` | ✓ | ✓ |
 | `store_domain` | `"tienda.com"` | Dominio de la página donde corre el píxel | ✓ | ✓ |
 | `order_id` | `"12345"` | Identificador del pedido que expone su página. En Shopify es el ID interno del pedido, no el número `#1001`. Va vacío si su página no lo expone | | ✓ |
@@ -37,7 +56,7 @@ Este es un envío `purchase` completo:
 
 ```json
 {
-  "v": 2, "pixel_version": "2.0.1", "event": "purchase",
+  "event": "purchase",
   "store_domain": "tienda.com", "order_id": "12345", "order_value": 250000, "order_value_raw": "250000",
   "currency": "COP", "order_status": "complete", "value_source": "ecommerce.value",
   "signal": "referrer+utm", "landed_at": "2026-10-19T14:03:22.000Z", "sent_at": "2026-10-19T14:21:05.000Z",
@@ -57,7 +76,7 @@ El píxel no usa cookies. Solo usa estas claves:
 
 El píxel también borra la clave `hotsale_data` que dejaba la versión de marzo de 2026.
 
-## 2. A dónde van
+## 3. A dónde van
 
 - **Destino único:** una aplicación web de Google Apps Script (`https://script.google.com/macros/s/…/exec`). Es el único servidor al que el píxel se conecta.
 - **Dónde se guardan:** en una hoja de cálculo privada de Google de UpSell/BM-Hub, que opera la medición por encargo de la CCCE. La hoja no se comparte; los reportes se hacen en Looker Studio.
@@ -67,7 +86,7 @@ El píxel también borra la clave `hotsale_data` que dejaba la versión de marzo
 - **Qué rechaza el collector:** envíos de dominios que no pertenecen a un aliado registrado, con un formato distinto al de esta versión, de más de 8 KB, o más de 120 por minuto de una misma tienda. Los pedidos sospechosos quedan marcados para revisión.
 - **Formato:** la petición es un `POST` con cuerpo `text/plain` (JSON). No dispara preflight CORS.
 
-## 3. Regla de atribución
+## 4. Regla de atribución
 
 Una visita a su tienda cuenta como **toque de Hot Sale** si se cumple al menos una de estas condiciones:
 
@@ -105,7 +124,7 @@ Así el reporte puede separar las ventas de las campañas del aliado para el eve
 - Un segundo pedido del mismo visitante sin una nueva llegada desde Hot Sale.
 - Compras en navegadores que bloquean o borran el almacenamiento, como el modo privado o Safari cuando borra el almacenamiento de un sitio tras 7 días sin visitas.
 
-## 4. Qué NO hace el píxel
+## 5. Qué NO hace el píxel
 
 - No lee ni escribe cookies.
 - No carga scripts de terceros: ni Google Analytics, ni Meta, ni ningún otro. El único código que corre es el que usted pega.
@@ -117,25 +136,7 @@ Así el reporte puede separar las ventas de las campañas del aliado para el eve
 
 Estas afirmaciones se comprueban de forma automática antes de publicar cada versión: la compilación falla si un snippet contiene llamadas a `fbq`, `gtag`, cookies, `dataLayer.push`, temporizadores, listeners, URLs distintas del collector o nombres de datos personales; y pruebas en Chromium sobre páginas con un píxel de Meta y un `gtag` falsos confirman que esas funciones no reciben llamadas, no aparecen variables globales, el `dataLayer` no cambia y no hay peticiones distintas a la del collector.
 
-## 5. Instalación
-
-El código es el mismo para todas las tiendas: son los archivos de [`Pixels/`](Pixels/). Si tiene instalada la versión de marzo de 2026 (etiquetas "Hotsale UTM Capture" y "Hotsale Conversion Pixel", o código en `theme.liquid`), **elimínela antes** de instalar esta.
-
-| Plataforma | Qué se instala | Guía |
-|---|---|---|
-| Shopify | Un solo píxel personalizado en *Eventos de clientes*. Nada en `theme.liquid` | [docs/instalacion-shopify.md](docs/instalacion-shopify.md) |
-| Google Tag Manager (cualquier plataforma) | Pixel 1 en todas las páginas y Pixel 2 en la página de confirmación | [docs/instalacion-gtm.md](docs/instalacion-gtm.md) |
-| VTEX | Por medio de GTM | [docs/instalacion-vtex.md](docs/instalacion-vtex.md) |
-| WooCommerce | Por medio de GTM o de `functions.php` | [docs/instalacion-woocommerce.md](docs/instalacion-woocommerce.md) |
-| Otra plataforma, sin GTM | Pixel 1 en la plantilla principal y Pixel 2 en la página de confirmación | [docs/instalacion-gtm.md#sin-gtm](docs/instalacion-gtm.md#sin-gtm) |
-
-**Si su sitio usa Content-Security-Policy**, agregue `https://script.google.com` y `https://script.googleusercontent.com` a `connect-src`. Si no lo hace, el navegador bloquea el envío.
-
-## 6. Cómo verificar la instalación
-
-Visite su tienda con `?utm_source=hotsale&hs_test=1`, haga una compra de prueba y revise en las herramientas de desarrollo del navegador las dos peticiones a `script.google.com`. Los envíos de prueba no cuentan en los reportes. El paso a paso está en [docs/pruebas.md](docs/pruebas.md).
-
-## 7. Cómo desinstalar
+## 6. Cómo desinstalar
 
 - **GTM:** pause o elimine las dos etiquetas y publique el contenedor.
 - **Shopify:** en *Configuración → Eventos de clientes*, desconecte o elimine el píxel "Hot Sale".
@@ -143,7 +144,7 @@ Visite su tienda con `?utm_source=hotsale&hs_test=1`, haga una compra de prueba 
 
 Las claves que queden en los navegadores de sus visitantes (§1) ya no se leen ni se envían a ninguna parte.
 
-## 8. Versiones y verificación
+## 7. Versiones y verificación
 
 - Cada snippet indica su versión en la primera línea y en `CONFIG.pixelVersion`. Cada envío incluye `pixel_version`.
 - El código vive en su sitio: no se descarga de ningún servidor, así que no cambia a menos que usted pegue una versión nueva.
@@ -160,7 +161,7 @@ cd Pixels && shasum -a 256 -c SHA256SUMS.txt                          # todas, e
 Get-FileHash .\pixel2-gtm-confirmacion.html -Algorithm SHA256        # Windows
 ```
 
-## 9. Contacto
+## 8. Contacto
 
 - Implementación y dudas: sergio@upsellmarketing.co
 - Vulnerabilidades: ver [SECURITY.md](SECURITY.md)

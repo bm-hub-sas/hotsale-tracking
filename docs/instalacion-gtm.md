@@ -2,6 +2,8 @@
 
 Sirve para cualquier plataforma que tenga GTM en todas sus páginas, incluida la página de confirmación de compra. Si no usa GTM, vaya a [Sin GTM](#sin-gtm).
 
+> **Video tutorial:** el paso a paso de esta instalación está en [este enlace](https://hi.switchy.io/tutopixelhot) (video de Google Tag Manager).
+
 Necesita estos dos archivos, que son los mismos para todas las tiendas:
 
 - `pixel1-todas-las-paginas.html`

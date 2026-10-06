@@ -2,6 +2,8 @@
 
 En Shopify se instala **un solo píxel personalizado**, que registra la llegada desde Hot Sale y la compra. **No se pega nada en `theme.liquid`.**
 
+> **Video tutorial:** el paso a paso de esta instalación está en [este enlace](https://hi.switchy.io/tutopixelhot) (video de Shopify).
+
 Necesita el archivo `pixel2-shopify-customer-events.js`, que es el mismo para todas las tiendas.
 
 > **Estado de verificación:** `[PENDIENTE]` Falta la prueba con una compra real en una tienda de desarrollo de Shopify. La lógica está probada contra la API documentada de Shopify (ver [Notas técnicas](#notas-técnicas)). Mientras tanto, haga la [prueba](pruebas.md) en su tienda antes del evento.
