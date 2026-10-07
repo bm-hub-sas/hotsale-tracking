@@ -80,7 +80,7 @@ El píxel también borra la clave `hotsale_data` que dejaba la versión de marzo
 
 - **Destino único:** una aplicación web de Google Apps Script (`https://script.google.com/macros/s/…/exec`). Es el único servidor al que el píxel se conecta.
 - **Dónde se guardan:** en una hoja de cálculo privada de Google de UpSell/BM-Hub, que opera la medición por encargo de la CCCE. La hoja no se comparte; los reportes se hacen en Looker Studio.
-- **Retención:** `[DEFINIR con la CCCE]`.
+- **Retención:** 6 meses.
 - **Quién puede verlos:** usted (el reporte de su tienda), la CCCE y UpSell/BM-Hub.
 - **IP y navegador:** Google recibe la conexión, como en cualquier servicio web, pero el script no tiene acceso a la IP ni a los encabezados de la petición. Solo recibe el contenido del envío.
 - **Qué rechaza el collector:** envíos de dominios que no pertenecen a un aliado registrado, con un formato distinto al de esta versión, de más de 8 KB, o más de 120 por minuto de una misma tienda. Los pedidos sospechosos quedan marcados para revisión.
@@ -111,7 +111,7 @@ Así el reporte puede separar las ventas de las campañas del aliado para el eve
 - Una visita que no es de Hot Sale (Google, sus propias campañas, tráfico directo) **no** borra el toque.
 - Cada toque se asocia a un solo pedido. Después de reportar un pedido con número, esté completo o no, el toque se borra.
 - El píxel no reporta compras cuyo toque tenga más de 30 días.
-- **Ventana del evento:** el reporte cuenta las compras hasta `[N días después del cierre del evento — DEFINIR con la CCCE]`. El evento va del 19 al 23 de octubre de 2026, con extensión el 24 y 25 de octubre.
+- **Ventana del evento:** el reporte cuenta las compras hasta 15 días después del cierre del evento. El evento va del 19 al 23 de octubre de 2026, con extensión el 24 y 25 de octubre.
 - Los envíos con `is_test: true` no cuentan en los reportes.
 
 > **Para su equipo de marketing:** en sus propias campañas para el evento, incluya `hotsale` en algún UTM (por ejemplo, `utm_campaign=hotsale_oct`). Así esas ventas también cuentan como de Hot Sale.
