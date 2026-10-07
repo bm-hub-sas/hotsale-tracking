@@ -1,3 +1,3 @@
-7f28d9d1b6568a7942586e264b7727ccc80db8bd9dfb5ede966615086318233a  pixel1-todas-las-paginas.html
-9344d2159af3101cbaf8f0b6b1a4e43a84f1c0a84fe43df495bd646fa02228fd  pixel2-gtm-confirmacion.html
-169a9857d71ebe390d6d677e29ffb9bfff7f145d63836831cc33ced4354cc7f4  pixel2-shopify-customer-events.js
+7f28d9d1b6568a7942586e264b7727ccc80db8bd9dfb5ede966615086318233a  GTM - HTML/pixel1-todas-las-paginas.html
+9344d2159af3101cbaf8f0b6b1a4e43a84f1c0a84fe43df495bd646fa02228fd  GTM - HTML/pixel2-gtm-confirmacion.html
+169a9857d71ebe390d6d677e29ffb9bfff7f145d63836831cc33ced4354cc7f4  Shopify/pixel-shopify-customer-events.js
